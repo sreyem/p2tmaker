@@ -3,6 +3,8 @@ Imports System.IO
 
 Module m_p2tmaker
 
+
+
     Private log As New List(Of String)
     Private logFileName As String = String.Empty
     Private HeavyRainLimit As Double = 50
@@ -86,6 +88,7 @@ Module m_p2tmaker
         getmaxPREC()
 
         getEXP()
+
 
         getRecursive()
 
@@ -1141,7 +1144,6 @@ Module m_p2tmaker
         Dim EFLX1 As Double = Double.NaN
         Dim EFLX2 As Double = Double.NaN
         Dim INFL As Double = Double.NaN
-        Dim IRRG As Double = Double.NaN
         Dim TPAP As Double = Double.NaN
 
         Dim GW_discharge As Double = 0
@@ -1212,7 +1214,6 @@ Module m_p2tmaker
                 EFLX1 = CDbl(tempArray(eZTSHeader.EFLX1))
 
                 TPAP = CDbl(tempArray(posTPAP))
-                IRRG = CDbl(tempArray.Last)
 
             Catch ex As Exception
 
@@ -1271,7 +1272,6 @@ Module m_p2tmaker
 
 
             If Exp Then
-
                 'GW_discharge  calc. with exponential discharge formula
                 ' Q2 = Q1 exp { −A (T2 − T1) } + R [ 1 − exp { −A (T2 − T1) } ]
                 'https://en.wikipedia.org/wiki/Runoff_model_(reservoir)
@@ -1279,13 +1279,10 @@ Module m_p2tmaker
                 GW_discharge =
                     GW_discharge * Math.Exp(-(1 / MRT) * Timestep) +
                     INFL * (1 - Math.Exp(-(1 / MRT) * Timestep))
-
             Else
-
                 'GW_discharge calc. with Stella from nick jarvis          
                 GW_discharge = (1 / MRT) * GW_storage
                 GW_storage = GW_storage + ((INFL - GW_discharge) * Timestep)
-
             End If
 
 
