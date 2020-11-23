@@ -11,8 +11,9 @@ Calculation of GW storage and discharge
 
 + GW_discharge calc. with Stella from Nick Jarvis
 
-   + GW_discharge = (1 / MRT) * GW_storage
    + GW_storage = GW_storage + ((INFL - GW_discharge) * Timestep)
+   + GW_discharge = (1 / MRT) * GW_storage
+   
   
 + GW_discharge  calc. with exponential discharge formula
   Q2 = Q1 exp { −A (T2 − T1) } + R [ 1 − exp { −A (T2 − T1) } ]
