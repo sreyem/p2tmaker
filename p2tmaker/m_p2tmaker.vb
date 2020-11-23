@@ -679,7 +679,6 @@ Module m_p2tmaker
 
     End Sub
 
-
     Private Sub getSingleZTS()
 
         Dim tempFilter As String() = {}
@@ -1148,9 +1147,11 @@ Module m_p2tmaker
         Dim GW_storage As Double = 0
         Dim Timestep As Integer = 1
 
+        'get zts file
         Try
             ZTSFile = File.ReadAllLines(ZTSFileName)
 
+            'check for valid zts file
             If ZTSFile.Count < 400 Then
                 add2Log(entry:=("IO Errorr:=").PadLeft(logLen) &
                                        "IO Error reading ZTS file, file empty or broken" & vbCrLf &
@@ -1270,6 +1271,7 @@ Module m_p2tmaker
             End If
 
 
+            'MRT  = Mean residence time in days, std. = 20d
             If Exp Then
 
                 'GW_discharge  calc. with exponential discharge formula
