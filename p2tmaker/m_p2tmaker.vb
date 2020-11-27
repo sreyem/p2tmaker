@@ -176,13 +176,19 @@ Module m_p2tmaker
             If Not createP2T(
                 ZTSFileName:=ZTSFileName) Then
 
+                Console.Beep()
                 Continue For
 
             End If
 
-            createHeader(
+            If Not createHeader(
                 ParMet:=eParMet.Par,
-                ZTSFileName:=ZTSFileName)
+                ZTSFileName:=ZTSFileName) Then
+
+                Console.Beep()
+                Continue For
+
+            End If
 
             out.AddRange(p2tHeader)
             out.AddRange(p2tDataParent)
@@ -297,6 +303,13 @@ Module m_p2tmaker
     ''' </summary>
     ''' <remarks></remarks>
     Private posTPAP As Integer = -1
+
+    ''' <summary>
+    ''' Position of the irrigation info in zts file
+    ''' </summary>
+    ''' <remarks></remarks>
+    Private posIRRG As Integer = -1
+
 
     Private Function getApplnInfo(Optional Leadingstring As String = "*  ") As String()
 
@@ -1023,6 +1036,8 @@ Module m_p2tmaker
 
         Dim tempArray As String() = {}
 
+        posTPAP = -1
+
         tempArray =
             ZTSHeaderRow.Split(
                 separator:={" "c},
@@ -1037,7 +1052,34 @@ Module m_p2tmaker
 
         Next
 
-        'add2Log(entry:=("TPAPpos:=").PadLeft(logLen) & posTPAP.ToString)
+        If posTPAP = -1 Then
+            add2Log(entry:="No 'TPAP' found in header, can't get appln. info!")
+        End If
+
+    End Sub
+
+    Private Sub getIRRGpos(ZTSHeaderRow As String)
+
+        Dim tempArray As String() = {}
+
+
+        posIRRG = -1
+        tempArray =
+            ZTSHeaderRow.Split(
+                separator:={" "c},
+                options:=StringSplitOptions.RemoveEmptyEntries)
+
+        For counter As Integer = 0 To tempArray.Count - 1
+            If tempArray(counter) = "IRRG" Then
+                posIRRG = counter + eZTSHeader.EventDay
+                Exit For
+            End If
+
+        Next
+
+        If posIRRG = -1 Then
+            add2Log(entry:="No 'IRRG' found in header, ignore irrigation!")
+        End If
 
     End Sub
 
@@ -1171,6 +1213,14 @@ Module m_p2tmaker
 
         getTPAPpos(ZTSHeaderRow:=ZTSFile(ZTSHeaderRowNo))
 
+        'no 'TPAP found : can't continue!
+        If posTPAP = -1 Then
+            Return False
+        End If
+
+        getIRRGpos(ZTSHeaderRow:=ZTSFile(ZTSHeaderRowNo))
+
+
         For RowCounter As Integer = ZTSDataStartRowNo To ZTSFile.Count - 1
 
             tempArray =
@@ -1213,7 +1263,12 @@ Module m_p2tmaker
                 EFLX1 = CDbl(tempArray(eZTSHeader.EFLX1))
 
                 TPAP = CDbl(tempArray(posTPAP))
-                IRRG = CDbl(tempArray.Last)
+
+                If posIRRG <> -1 Then
+                    IRRG = CDbl(tempArray(posIRRG))
+                Else
+                    IRRG = Double.NaN
+                End If
 
             Catch ex As Exception
 
@@ -1225,8 +1280,6 @@ Module m_p2tmaker
                 Return False
 
             End Try
-
-
 
             If TPAP <> 0 Then
 
