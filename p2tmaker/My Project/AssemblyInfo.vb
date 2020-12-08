@@ -8,11 +8,11 @@ Imports System.Runtime.InteropServices
 
 ' Die Werte der Assemblyattribute überprüfen
 
-<Assembly: AssemblyTitle("p2tmaker")> 
-<Assembly: AssemblyDescription("")> 
+<Assembly: AssemblyTitle("p2tmaker")>
+<Assembly: AssemblyDescription("creates interface file (*.p2t) between PRZM and TOXSWA")>
 <Assembly: AssemblyCompany("HAB")> 
-<Assembly: AssemblyProduct("p2tmaker")> 
-<Assembly: AssemblyCopyright("Copyright © HAB 2019")> 
+<Assembly: AssemblyProduct("p2tmaker")>
+<Assembly: AssemblyCopyright("Copyright © HAB 2020")>
 <Assembly: AssemblyTrademark("")> 
 
 <Assembly: ComVisible(False)>
@@ -31,5 +31,5 @@ Imports System.Runtime.InteropServices
 ' übernehmen, indem Sie "*" eingeben:
 ' <Assembly: AssemblyVersion("1.0.*")> 
 
-<Assembly: AssemblyVersion("1.2019.1123.1")>
-<Assembly: AssemblyFileVersion("1.2019.1123.1")>
+<Assembly: AssemblyVersion("1.2020.1208.1")>
+<Assembly: AssemblyFileVersion("1.2020.1208.1")>

@@ -159,7 +159,7 @@ Module m_p2tmaker
             add2Log(
                 entry:=("ZTS:=").PadLeft(logLen) & ZTSFileName)
 
-            If Met01 <> String.Empty Then
+            If Met01 = String.Empty Then
                 add2Log(
                     entry:=("Parent run:=").PadLeft(logLen) & Parent)
             End If
@@ -169,6 +169,7 @@ Module m_p2tmaker
             p2tHeader.Clear()
             p2tDataParent.Clear()
             p2tDataMet01.Clear()
+            p2tDataMet02.Clear()
             HeavyRain.Clear()
             out.Clear()
 
@@ -215,9 +216,8 @@ Module m_p2tmaker
 
             If Met01 <> String.Empty Then
 
-
                 createHeader(
-                    ParMet:=eParMet.Met,
+                    ParMet:=eParMet.Met01,
                     ZTSFileName:=ZTSFileName)
 
                 out.Clear()
@@ -244,6 +244,38 @@ Module m_p2tmaker
                 End Try
 
             End If
+
+            If Met02 <> String.Empty Then
+
+                createHeader(
+                    ParMet:=eParMet.Met02,
+                    ZTSFileName:=ZTSFileName)
+
+                out.Clear()
+                out.AddRange(p2tHeader)
+                out.AddRange(p2tDataMet02)
+
+                Try
+
+                    P2TFileName = Path.Combine(
+                                    PRZMRunDir,
+                                    SWASHno.ToString("00000") & "-C3.p2t")
+
+                    File.WriteAllLines(
+                            path:=P2TFileName,
+                            contents:=out.ToArray)
+
+                    add2Log(
+                        entry:=(Met02 & " p2t:=").PadLeft(logLen) & P2TFileName)
+
+
+                Catch ex As Exception
+                    add2Log(
+                        entry:=("IO Error:=").PadLeft(logLen) & ex.Message)
+                End Try
+
+            End If
+
 
             If reportHeavyRain Then
                 add2Log("")
@@ -294,6 +326,9 @@ Module m_p2tmaker
 
         RFLX2
         EFLX2
+
+        RFLX3
+        EFLX3
 
     End Enum
 
@@ -434,6 +469,7 @@ Module m_p2tmaker
 
     Private Parent As String = String.Empty
     Private Met01 As String = String.Empty
+    Private Met02 As String = String.Empty
 
 
     Private SWASHno As Integer = -1
@@ -449,6 +485,7 @@ Module m_p2tmaker
     Private p2tHeader As New List(Of String)
     Private p2tDataParent As New List(Of String)
     Private p2tDataMet01 As New List(Of String)
+    Private p2tDataMet02 As New List(Of String)
 
     Private HeavyRain As New List(Of String)
 
@@ -929,14 +966,40 @@ Module m_p2tmaker
                     add2Log(
                         entry:=("Met 01:=").PadLeft(logLen) & Met01)
 
+                Case 3
+
+                    Parent = MasterFPJ(0)
+                    Met01 = MasterFPJ(1)
+                    Met02 = MasterFPJ(2)
+
+                    add2Log(
+                        entry:=("Parent:=").PadLeft(logLen) & Parent)
+                    add2Log(
+                        entry:=("Met 01:=").PadLeft(logLen) & Met01)
+                    add2Log(
+                        entry:=("Met 02:=").PadLeft(logLen) & Met02)
+
+                Case Else
+                    add2Log(entry:=
+                        "Fatal Error reading MASTER.FPJ file to parse for compound names" & vbCrLf &
+                        "more than 2 metabolites defined" & vbCrLf &
+                        Join(SourceArray:=MasterFPJ, Delimiter:=vbCrLf) & vbCrLf &
+                        Path.Combine(
+                            PRZMRunDir,
+                            Filename))
+
+                    End
+
             End Select
 
             'at least a parent must be given
             If Parent = String.Empty OrElse
-               MasterFPJ.Count = 2 And Met01 = String.Empty Then
+               MasterFPJ.Count = 2 And Met01 = String.Empty OrElse
+               MasterFPJ.Count = 3 And (Met01 = String.Empty Or Met02 = String.Empty) Then
 
                 add2Log(entry:=
                     "Fatal Error reading MASTER.FPJ file to parse for compound names" & vbCrLf &
+                     Join(SourceArray:=MasterFPJ, Delimiter:=vbCrLf) & vbCrLf &
                     Path.Combine(
                         PRZMRunDir,
                         Filename))
@@ -1087,7 +1150,8 @@ Module m_p2tmaker
 
     Private Enum eParMet
         Par
-        Met
+        Met01
+        Met02
     End Enum
 
     Private Function createHeader(ParMet As eParMet, ZTSFileName As String) As Boolean
@@ -1122,7 +1186,7 @@ Module m_p2tmaker
 
             .Add(LeadingString & "Applns per season   : " & ApplnsPerSeason.ToString("00"))
 
-            'parent or metabolite, must start with '*  Chemical:  ' to fit with txw info
+            'parent or met01/met02, must start with '*  Chemical:  ' to fit with txw info
             If ParMet = eParMet.Par Then
 
                 .Add(LeadingString & "Chemical:  " & Parent)
@@ -1131,9 +1195,14 @@ Module m_p2tmaker
                 add2Log(entry:=("Scenario:=").PadLeft(logLen) & Scenario)
                 add2Log(entry:=("SWASH #:=").PadLeft(logLen) & SWASHno.ToString)
 
-            Else
+            ElseIf ParMet = eParMet.Met01 Then
 
                 .Add(LeadingString & "Chemical:  " & Met01)
+                .Add(LeadingString & "Metabolite run")
+
+            ElseIf ParMet = eParMet.Met02 Then
+
+                .Add(LeadingString & "Chemical:  " & Met02)
                 .Add(LeadingString & "Metabolite run")
 
             End If
@@ -1176,11 +1245,17 @@ Module m_p2tmaker
 
         Dim RUNF As Double = Double.NaN
         Dim PRCP As Double = Double.NaN
+
         Dim RFLX1 As Double = Double.NaN
         Dim RFLX2 As Double = Double.NaN
+        Dim RFLX3 As Double = Double.NaN
+
         Dim ESLS As Double = Double.NaN
+
         Dim EFLX1 As Double = Double.NaN
         Dim EFLX2 As Double = Double.NaN
+        Dim EFLX3 As Double = Double.NaN
+
         Dim INFL As Double = Double.NaN
         Dim IRRG As Double = Double.NaN
         Dim TPAP As Double = Double.NaN
@@ -1220,6 +1295,10 @@ Module m_p2tmaker
 
         getIRRGpos(ZTSHeaderRow:=ZTSFile(ZTSHeaderRowNo))
 
+        'no 'TPAP found : can't continue!
+        If posIRRG = -1 Then
+            add2Log("No 'IRRG' info found!")
+        End If
 
         For RowCounter As Integer = ZTSDataStartRowNo To ZTSFile.Count - 1
 
@@ -1252,6 +1331,7 @@ Module m_p2tmaker
                 SimEnd = EventDate
             End If
 
+            'parent
             Try
 
                 RUNF = CDbl(tempArray(eZTSHeader.RUNF))
@@ -1312,7 +1392,29 @@ Module m_p2tmaker
 
             End If
 
+            If Met02 <> String.Empty Then
+
+                Try
+
+                    RFLX3 = CDbl(tempArray(eZTSHeader.RFLX3))
+                    EFLX3 = CDbl(tempArray(eZTSHeader.EFLX3))
+
+                Catch ex As Exception
+
+                    add2Log(entry:=("ParseError:=").PadLeft(logLen) &
+                      "Can't parse Met01 data from" & vbCrLf &
+                      ZTSFile(RowCounter) & vbCrLf &
+                      ex.Message)
+                    Process.Start(fileName:=logFileName)
+                    End
+
+                End Try
+
+            End If
+
+
             EventDuration = getEventDuration(PRCP:=PRCP, RUNF:=RUNF)
+
             If EventDuration = 12 And PRCP = 0 And reportSnowMelt Then
                 add2Log(entry:=("Snow melt:=").PadLeft(logLen) &
                       ("at " & EventDate.ToString("dd-MMM-yyyy")).PadLeft("           dd-MMM-yyyy".Length))
@@ -1369,6 +1471,18 @@ Module m_p2tmaker
                        GW_discharge:=GW_discharge))
             End If
 
+
+            If Met02 <> String.Empty Then
+                p2tDataMet02.AddRange(
+                   createP2TDay(
+                       EventDate:=EventDate,
+                       EventDuration:=EventDuration,
+                       RUNF:=RUNF,
+                       EFLX:=EFLX3,
+                       ESLS:=ESLS,
+                       RFLX:=RFLX3,
+                       GW_discharge:=GW_discharge))
+            End If
         Next
 
         Return True
