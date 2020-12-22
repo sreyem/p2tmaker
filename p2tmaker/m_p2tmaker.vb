@@ -8,6 +8,7 @@ Module m_p2tmaker
     Private HeavyRainLimit As Double = 50
     Private reportHeavyRain As Boolean = False
     Private reportSnowMelt As Boolean = False
+    Private p2tFileInfo As FileInfo
 
 
     Private keepLogFileName As Boolean = False
@@ -178,6 +179,7 @@ Module m_p2tmaker
                 ZTSFileName:=ZTSFileName) Then
 
                 Console.Beep()
+                add2Log(entry:="Major error creating p2t data")
                 Continue For
 
             End If
@@ -187,13 +189,13 @@ Module m_p2tmaker
                 ZTSFileName:=ZTSFileName) Then
 
                 Console.Beep()
+                add2Log(entry:="Major error creating p2t header")
                 Continue For
 
             End If
 
             out.AddRange(p2tHeader)
             out.AddRange(p2tDataParent)
-
 
             Try
 
@@ -205,12 +207,34 @@ Module m_p2tmaker
                         path:=P2TFileName,
                         contents:=out.ToArray)
 
-                add2Log(
-                    entry:=(Parent & " p2t:=").PadLeft(logLen) & P2TFileName)
+                p2tFileInfo = New FileInfo(P2TFileName)
+
+                With p2tFileInfo
+
+                    If Not .Exists Then
+                        add2Log(
+                            entry:=(Parent & " p2t:=").PadLeft(logLen) & " doesn't exist")
+
+                        Process.Start(fileName:=logFileName)
+                        End
+
+                    Else
+                        add2Log(
+                            entry:=(Parent & " p2t:=").PadLeft(logLen) & .FullName)
+                        add2Log(
+                           entry:=(" ").PadLeft(logLen) & Math.Round(.Length / 1000000, 0) & "MB")
+                    End If
+
+                End With
 
             Catch ex As Exception
+
                 add2Log(
                     entry:=("IO Error:=").PadLeft(logLen) & ex.Message)
+
+                Process.Start(fileName:=logFileName)
+                End
+
             End Try
 
 
@@ -234,13 +258,34 @@ Module m_p2tmaker
                             path:=P2TFileName,
                             contents:=out.ToArray)
 
-                    add2Log(
-                        entry:=(Met01 & " p2t:=").PadLeft(logLen) & P2TFileName)
+                    p2tFileInfo = New FileInfo(P2TFileName)
 
+                    With p2tFileInfo
+
+                        If Not .Exists Then
+                            add2Log(
+                            entry:=(Met01 & " p2t:=").PadLeft(logLen) & " doesn't exist")
+
+                            Process.Start(fileName:=logFileName)
+                            End
+
+                        Else
+                            add2Log(
+                            entry:=(Met01 & " p2t:=").PadLeft(logLen) & .FullName)
+                            add2Log(
+                           entry:=(" ").PadLeft(logLen) & Math.Round(.Length / 1000000, 0) & "MB")
+                        End If
+
+                    End With
 
                 Catch ex As Exception
+
                     add2Log(
                         entry:=("IO Error:=").PadLeft(logLen) & ex.Message)
+
+                    Process.Start(fileName:=logFileName)
+                    End
+
                 End Try
 
             End If
@@ -265,13 +310,35 @@ Module m_p2tmaker
                             path:=P2TFileName,
                             contents:=out.ToArray)
 
-                    add2Log(
-                        entry:=(Met02 & " p2t:=").PadLeft(logLen) & P2TFileName)
+                    p2tFileInfo = New FileInfo(P2TFileName)
 
+                    With p2tFileInfo
+
+                        If Not .Exists Then
+
+                            add2Log(
+                            entry:=(Met02 & " p2t:=").PadLeft(logLen) & " doesn't exist")
+
+                            Process.Start(fileName:=logFileName)
+                            End
+
+                        Else
+                            add2Log(
+                            entry:=(Met02 & " p2t:=").PadLeft(logLen) & .FullName)
+                            add2Log(
+                           entry:=(" ").PadLeft(logLen) & Math.Round(.Length / 1000000, 0) & "MB")
+                        End If
+
+                    End With
 
                 Catch ex As Exception
+
                     add2Log(
                         entry:=("IO Error:=").PadLeft(logLen) & ex.Message)
+
+                    Process.Start(fileName:=logFileName)
+                    End
+
                 End Try
 
             End If
@@ -410,6 +477,7 @@ Module m_p2tmaker
         Console.WriteLine(Leadingstring & "-------------------------------------------------")
         Console.WriteLine(Leadingstring)
         Console.WriteLine(Leadingstring)
+
     End Sub
 
 #End Region
@@ -453,8 +521,7 @@ Module m_p2tmaker
     ''' get zts file recursively
     ''' </summary>
     ''' <remarks></remarks>
-    Private recursive As Boolean = False
-
+    Private recursive As Boolean = True
 
 
     Private PRZMRunDir As String = String.Empty
@@ -463,9 +530,6 @@ Module m_p2tmaker
 
     Private ZTSfiles2go As New List(Of String)
     Private SWASHNos As New List(Of Integer)
-
-
-
 
     Private Parent As String = String.Empty
     Private Met01 As String = String.Empty
@@ -558,6 +622,9 @@ Module m_p2tmaker
                           SourceArray:=Environment.GetCommandLineArgs(),
                           Delimiter:=vbCrLf))
 
+            Process.Start(fileName:=logFileName)
+            End
+
         End Try
 
     End Sub
@@ -593,6 +660,9 @@ Module m_p2tmaker
                     "Error parsing cmd line for " & argWarmup & vbCrLf &
                      tempFilter.First & vbCrLf &
                      ex.Message)
+
+                Process.Start(fileName:=logFileName)
+                End
 
             End Try
 
@@ -634,6 +704,9 @@ Module m_p2tmaker
                     "Error parsing cmd line for " & argMRT & vbCrLf &
                      tempFilter.First & vbCrLf &
                      ex.Message)
+
+                Process.Start(fileName:=logFileName)
+                End
 
             End Try
 
@@ -677,6 +750,9 @@ Module m_p2tmaker
                      tempFilter.First & vbCrLf &
                      ex.Message)
 
+                Process.Start(fileName:=logFileName)
+                End
+
             End Try
 
         End If
@@ -718,6 +794,9 @@ Module m_p2tmaker
                     "Error parsing cmd line for " & argEXP & vbCrLf &
                      tempFilter.First & vbCrLf &
                      ex.Message)
+
+                Process.Start(fileName:=logFileName)
+                End
 
             End Try
 
@@ -761,6 +840,9 @@ Module m_p2tmaker
                     "Error parsing cmd line for " & argZTS & vbCrLf &
                      tempFilter.First & vbCrLf &
                      ex.Message)
+
+                Process.Start(fileName:=logFileName)
+                End
 
             End Try
 
@@ -860,7 +942,9 @@ Module m_p2tmaker
                    "Error getting *.zts files from path  " & vbCrLf &
                     ZTSFilePath & vbCrLf &
                     ex.Message)
-            Exit Sub
+
+            Process.Start(fileName:=logFileName)
+            End
 
         End Try
 
@@ -898,6 +982,9 @@ Module m_p2tmaker
                      tempFilter.First & vbCrLf &
                      ex.Message)
 
+                Process.Start(fileName:=logFileName)
+                End
+
             End Try
 
         End If
@@ -907,8 +994,6 @@ Module m_p2tmaker
                         IIf(std, " (std.)", " *** user def. ***").ToString)
 
     End Sub
-
-
 
 #End Region
 
@@ -988,6 +1073,7 @@ Module m_p2tmaker
                             PRZMRunDir,
                             Filename))
 
+                    Process.Start(fileName:=logFileName)
                     End
 
             End Select
@@ -1004,6 +1090,7 @@ Module m_p2tmaker
                         PRZMRunDir,
                         Filename))
 
+                Process.Start(fileName:=logFileName)
                 End
 
             End If
@@ -1017,11 +1104,10 @@ Module m_p2tmaker
                             Filename) & vbCrLf &
                         ex.Message)
 
+            Process.Start(fileName:=logFileName)
             End
 
         End Try
-
-
 
     End Sub
 
@@ -1078,6 +1164,7 @@ Module m_p2tmaker
                     "Fatal Error parsing przm.pzm file for swash run numbers " & vbCrLf &
                     Path.Combine(PRZMRunDir, Filename))
 
+                Process.Start(fileName:=logFileName)
                 End
 
             End If
@@ -1089,6 +1176,7 @@ Module m_p2tmaker
                        Path.Combine(PRZMRunDir, Filename) & vbCrLf &
                        ex.Message)
 
+            Process.Start(fileName:=logFileName)
             End
 
         End Try
@@ -1116,7 +1204,12 @@ Module m_p2tmaker
         Next
 
         If posTPAP = -1 Then
-            add2Log(entry:="No 'TPAP' found in header, can't get appln. info!")
+            add2Log(
+                entry:="No 'TPAP' found in header, can't get appln. info!")
+
+            Process.Start(fileName:=logFileName)
+            End
+
         End If
 
     End Sub
@@ -1319,8 +1412,9 @@ Module m_p2tmaker
                         "Can't parse date from" & vbCrLf &
                         ZTSFile(RowCounter) & vbCrLf &
                         ex.Message)
+
                 Process.Start(fileName:=logFileName)
-                Return False
+                End
 
             End Try
 
@@ -1361,6 +1455,7 @@ Module m_p2tmaker
 
             End Try
 
+            'add appln
             If TPAP <> 0 Then
 
                 addAppln2List(
@@ -1413,38 +1508,66 @@ Module m_p2tmaker
             End If
 
 
-            EventDuration = getEventDuration(PRCP:=PRCP, RUNF:=RUNF)
+#Region "    event duration, snowmelt and heavy rain"
+
+            EventDuration =
+                getEventDuration(
+                        PRCP:=PRCP,
+                        RUNF:=RUNF)
 
             If EventDuration = 12 And PRCP = 0 And reportSnowMelt Then
+
                 add2Log(entry:=("Snow melt:=").PadLeft(logLen) &
-                      ("at " & EventDate.ToString("dd-MMM-yyyy")).PadLeft("           dd-MMM-yyyy".Length))
+                      ("at " &
+                      EventDate.ToString("dd-MMM-yyyy")).PadLeft("           dd-MMM-yyyy".Length))
+
             ElseIf PRCP >= HeavyRainLimit Then
+
                 HeavyRain.Add(
                     (" ").PadLeft(logLen) &
                      PRCP.ToString("0.0").PadLeft(5) & "mm at " &
                     EventDate.ToString("dd-MMM-yyyy"))
-            End If
-
-
-            'MRT  = Mean residence time in days, std. = 20d
-            If Exp Then
-
-                'GW_discharge  calc. with exponential discharge formula
-                ' Q2 = Q1 exp { −A (T2 − T1) } + R [ 1 − exp { −A (T2 − T1) } ]
-                'https://en.wikipedia.org/wiki/Runoff_model_(reservoir)
-
-                GW_discharge =
-                    GW_discharge * Math.Exp(-(1 / MRT) * Timestep) +
-                    INFL * (1 - Math.Exp(-(1 / MRT) * Timestep))
-
-            Else
-
-                'GW_discharge calc. with Stella from nick jarvis          
-                GW_discharge = (1 / MRT) * GW_storage
-                GW_storage = GW_storage + ((INFL - GW_discharge) * Timestep)
 
             End If
 
+#End Region
+
+#Region "    discharge and storage"
+
+            Try
+
+                'MRT  = Mean residence time in days, std. = 20d
+                If Exp Then
+
+                    'GW_discharge  calc. with exponential discharge formula
+                    ' Q2 = Q1 exp { −A (T2 − T1) } + R [ 1 − exp { −A (T2 − T1) } ]
+                    'https://en.wikipedia.org/wiki/Runoff_model_(reservoir)
+
+                    GW_discharge =
+                        GW_discharge * Math.Exp(-(1 / MRT) * Timestep) +
+                        INFL * (1 - Math.Exp(-(1 / MRT) * Timestep))
+
+                Else
+
+                    'GW_discharge calc. with Stella from nick jarvis          
+                    GW_discharge = (1 / MRT) * GW_storage
+
+                End If
+
+                GW_storage += ((INFL - GW_discharge) * Timestep)
+
+            Catch ex As Exception
+
+                add2Log(
+                    entry:="Error calc. GW Discharge and Storage at" &
+                    EventDate.ToLongDateString & vbCrLf & ex.Message)
+
+                Process.Start(fileName:=logFileName)
+                End
+
+            End Try
+
+#End Region
 
             'check for warm-up years
             If SimStart.AddYears(WarmUp) > EventDate Then Continue For
@@ -1471,7 +1594,6 @@ Module m_p2tmaker
                        GW_discharge:=GW_discharge))
             End If
 
-
             If Met02 <> String.Empty Then
                 p2tDataMet02.AddRange(
                    createP2TDay(
@@ -1483,12 +1605,15 @@ Module m_p2tmaker
                        RFLX:=RFLX3,
                        GW_discharge:=GW_discharge))
             End If
+
         Next
 
         Return True
 
     End Function
 
+
+#Region "    create p2t day"
 
     Private Function createP2TDay(
                     EventDate As Date,
@@ -1503,53 +1628,84 @@ Module m_p2tmaker
         Dim tempString As String = String.Empty
 
 
-        For HourCounter As Integer = 1 To 24
+        Try
 
-            If HourCounter <= EventDuration Then
+            For HourCounter As Integer = 1 To 24
 
-                tempString =
-                    (EventDate.ToString("dd-MMM-yyyy") &
-                        "-" & HourCounter.ToString("00") & ":00").PadLeft("  01-Jan-1978-01:00".Length) &
-                ("0" & (RUNF / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
-                ("0" & (RFLX / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
-                ("0" & (ESLS / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
-                ("0" & (EFLX / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
-                ("0" & (GW_discharge / 24).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length)
+                If HourCounter <= EventDuration Then
 
-                out.Add(tempString)
+                    tempString =
+                        (EventDate.ToString("dd-MMM-yyyy") &
+                            "-" & HourCounter.ToString("00") & ":00").PadLeft("  01-Jan-1978-01:00".Length) &
+                    ("0" & (RUNF / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
+                    ("0" & (RFLX / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
+                    ("0" & (ESLS / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
+                    ("0" & (EFLX / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
+                    ("0" & (GW_discharge / 24).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length)
 
-            Else
+                    out.Add(tempString)
 
-                out.Add((EventDate.ToString("dd-MMM-yyyy") &
-                        "-" & HourCounter.ToString("00") & ":00").PadLeft("  01-Jan-1978-01:00".Length) &
-                      "     0.0000E+00     0.0000E+00     0.0000E+00     0.0000E+00" &
-                ("0" & (GW_discharge / 24).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length))
+                Else
 
-            End If
+                    out.Add((EventDate.ToString("dd-MMM-yyyy") &
+                            "-" & HourCounter.ToString("00") & ":00").PadLeft("  01-Jan-1978-01:00".Length) &
+                          "     0.0000E+00     0.0000E+00     0.0000E+00     0.0000E+00" &
+                    ("0" & (GW_discharge / 24).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length))
 
-        Next
+                End If
+
+            Next
+
+        Catch ex As Exception
+
+            add2Log(
+                entry:="Error creating p2t day " &
+                EventDate.ToLongDateString & vbCrLf & ex.Message)
+
+            Process.Start(fileName:=logFileName)
+            End
+
+        End Try
 
         Return out.ToArray
 
     End Function
 
-
     Private Function getEventDuration(
                         PRCP As Double,
                         RUNF As Double) As Integer
 
-        If PRCP / MaxPRECperHour > 24 Then
-            Return 24
-        ElseIf RUNF <> 0 AndAlso PRCP = 0 Then          
-            Return 12
-        Else
-            Return CInt(Math.Round(
-                PRCP / MaxPRECperHour,
-                digits:=0,
-                mode:=MidpointRounding.AwayFromZero))
-        End If
+        Try
+
+            If PRCP / MaxPRECperHour > 24 Then
+                Return 24
+            ElseIf RUNF <> 0 AndAlso PRCP = 0 Then
+                Return 12
+            Else
+                Return CInt(Math.Round(
+                    PRCP / MaxPRECperHour,
+                    digits:=0,
+                    mode:=MidpointRounding.AwayFromZero))
+            End If
+
+        Catch ex As Exception
+
+            add2Log(
+               entry:="Error calc event duration" & vbCrLf &
+               "PRCP : " & PRCP & vbCrLf &
+               "RUNF : " & RUNF & vbCrLf &
+               "MaxPRECperHour : " & MaxPRECperHour &
+               vbCrLf & ex.Message)
+
+            Process.Start(fileName:=logFileName)
+            End
+
+        End Try
+
 
     End Function
+
+#End Region
 
     Private Sub addAppln2List(
                     Eventdate As Date,
