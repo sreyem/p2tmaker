@@ -973,7 +973,7 @@ Module m_p2tmaker
                         Replacement:="",
                         Compare:=CompareMethod.Text))
 
-                std = False
+                std = True
 
             Catch ex As Exception
 
@@ -1218,8 +1218,8 @@ Module m_p2tmaker
 
         Dim tempArray As String() = {}
 
-
         posIRRG = -1
+
         tempArray =
             ZTSHeaderRow.Split(
                 separator:={" "c},
@@ -1363,34 +1363,45 @@ Module m_p2tmaker
 
             'check for valid zts file
             If ZTSFile.Count < 400 Then
-                add2Log(entry:=("IO Errorr:=").PadLeft(logLen) &
-                                       "IO Error reading ZTS file, file empty or broken" & vbCrLf &
-                                       ZTSFileName)
+
+                add2Log(entry:=("IO Error:=").PadLeft(logLen) &
+                                "IO Error reading ZTS file, file empty or broken" & vbCrLf &
+                                ZTSFileName)
+
                 Process.Start(fileName:=logFileName)
-                Return False
+                End
+
             End If
 
         Catch ex As Exception
-            add2Log(entry:=("IO Errorr:=").PadLeft(logLen) &
+
+            add2Log(entry:=("IO Error:=").PadLeft(logLen) &
                        "IO Error reading ZTS file" & vbCrLf &
                        ZTSFileName & vbCrLf &
                        ex.Message)
+
             Process.Start(fileName:=logFileName)
-            Return False
+            End
+
         End Try
 
         getTPAPpos(ZTSHeaderRow:=ZTSFile(ZTSHeaderRowNo))
 
         'no 'TPAP found : can't continue!
         If posTPAP = -1 Then
-            Return False
+
+            add2Log(entry:="Error reading ZTS file" & vbCrLf &
+                       "No appln. date info 'TPAP' found")
+            Process.Start(fileName:=logFileName)
+            End
+
         End If
 
         getIRRGpos(ZTSHeaderRow:=ZTSFile(ZTSHeaderRowNo))
 
-        'no 'TPAP found : can't continue!
+        'no 'IRRG found : set irrigation to 0
         If posIRRG = -1 Then
-            add2Log("No 'IRRG' info found!")
+            add2Log("No 'IRRG' info found, set to 0!")
         End If
 
         For RowCounter As Integer = ZTSDataStartRowNo To ZTSFile.Count - 1
@@ -1441,7 +1452,7 @@ Module m_p2tmaker
                 If posIRRG <> -1 Then
                     IRRG = CDbl(tempArray(posIRRG))
                 Else
-                    IRRG = Double.NaN
+                    IRRG = 0
                 End If
 
             Catch ex As Exception
@@ -1450,6 +1461,7 @@ Module m_p2tmaker
                        "Can't parse data from" & vbCrLf &
                        ZTSFile(RowCounter) & vbCrLf &
                        ex.Message)
+
                 Process.Start(fileName:=logFileName)
                 Return False
 
@@ -1480,6 +1492,7 @@ Module m_p2tmaker
                       "Can't parse Met01 data from" & vbCrLf &
                       ZTSFile(RowCounter) & vbCrLf &
                       ex.Message)
+
                     Process.Start(fileName:=logFileName)
                     End
 
@@ -1500,6 +1513,7 @@ Module m_p2tmaker
                       "Can't parse Met01 data from" & vbCrLf &
                       ZTSFile(RowCounter) & vbCrLf &
                       ex.Message)
+
                     Process.Start(fileName:=logFileName)
                     End
 
@@ -1508,11 +1522,12 @@ Module m_p2tmaker
             End If
 
 
-#Region "    event duration, snowmelt and heavy rain"
+#Region "    event duration, snow melt and heavy rain"
 
             EventDuration =
                 getEventDuration(
                         PRCP:=PRCP,
+                        IRRG:=IRRG,
                         RUNF:=RUNF)
 
             If EventDuration = 12 And PRCP = 0 And reportSnowMelt Then
@@ -1659,8 +1674,15 @@ Module m_p2tmaker
         Catch ex As Exception
 
             add2Log(
-                entry:="Error creating p2t day " &
-                EventDate.ToLongDateString & vbCrLf & ex.Message)
+                entry:="Error creating p2t day" &
+                "Date : " & EventDate.ToLongDateString & vbCrLf &
+                "RUNF : " & RUNF & vbCrLf &
+                "RFLX : " & RFLX & vbCrLf &
+                "ESLS : " & ESLS & vbCrLf &
+                "EFLX : " & EFLX & vbCrLf &
+                "GW Discharge   : " & GW_discharge & vbCrLf &
+                "Event Duration : " & EventDuration & vbCrLf &
+                ex.Message)
 
             Process.Start(fileName:=logFileName)
             End
@@ -1673,17 +1695,19 @@ Module m_p2tmaker
 
     Private Function getEventDuration(
                         PRCP As Double,
+                        IRRG As Double,
                         RUNF As Double) As Integer
 
         Try
 
-            If PRCP / MaxPRECperHour > 24 Then
+            If (PRCP + IRRG) / MaxPRECperHour >= 24 Then
                 Return 24
-            ElseIf RUNF <> 0 AndAlso PRCP = 0 Then
+            ElseIf RUNF <> 0 AndAlso PRCP = 0 AndAlso IRRG = 0 Then
+                'snow melt => event duration =12h
                 Return 12
             Else
                 Return CInt(Math.Round(
-                    PRCP / MaxPRECperHour,
+                    (PRCP + IRRG) / MaxPRECperHour,
                     digits:=0,
                     mode:=MidpointRounding.AwayFromZero))
             End If
@@ -1691,11 +1715,12 @@ Module m_p2tmaker
         Catch ex As Exception
 
             add2Log(
-               entry:="Error calc event duration" & vbCrLf &
+               entry:="Error calc. event duration" & vbCrLf &
                "PRCP : " & PRCP & vbCrLf &
+               "IRRG : " & IRRG & vbCrLf &
                "RUNF : " & RUNF & vbCrLf &
-               "MaxPRECperHour : " & MaxPRECperHour &
-               vbCrLf & ex.Message)
+               "Max PREC per hour : " & MaxPRECperHour & vbCrLf &
+                ex.Message)
 
             Process.Start(fileName:=logFileName)
             End
@@ -1713,12 +1738,25 @@ Module m_p2tmaker
 
         Dim tempString As String = String.Empty
 
+        Try
+            tempString = "#  " & (applns.Count + 1).ToString("00").PadRight("01             ".Length) &
+                        (Eventdate.ToString("dd-MMM-yyyy") & "-09:00").PadRight("01-Jan-1975-09:00          ".Length) &
+                        (TPAP * 100000000).ToString("0.00")
 
-        tempString = "#  " & (applns.Count + 1).ToString("00").PadRight("01             ".Length) &
-            (Eventdate.ToString("dd-MMM-yyyy") & "-09:00").PadRight("01-Jan-1975-09:00          ".Length) &
-            (TPAP * 100000000).ToString("0.00")
+            applns.Add(tempString)
+        Catch ex As Exception
 
-        applns.Add(tempString)
+            add2Log(
+                entry:="Error adding appln to list" &
+                "Date : " & Eventdate.ToLongDateString & vbCrLf &
+                "TPAP : " & TPAP & vbCrLf &
+                ex.Message)
+
+            Process.Start(fileName:=logFileName)
+            End
+
+        End Try
+
 
     End Sub
 
@@ -1754,12 +1792,23 @@ Module m_p2tmaker
                     Out = "R4, Roujan stream"
 
                 Case Else
+                    SWASHno = -1
                     Out = " ? "
             End Select
 
             If SWASHno = -1 Then
-                add2Log(entry:="No SWASH number for this scenario" & vbCrLf & Out)
+
+                If Out <> String.Empty Then
+                    add2Log(entry:="Unknown scenario name or can't parse" & vbCrLf &
+                            ZTSFileName)
+                Else
+                    add2Log(entry:="No SWASH number for this scenario" & vbCrLf &
+                            Out)
+                End If
+
+                Process.Start(fileName:=logFileName)
                 End
+
             End If
 
             Return Out
@@ -1768,7 +1817,10 @@ Module m_p2tmaker
 
             add2Log(entry:="Can't parse FOCUSsw runoff scenario from filename" & vbCrLf &
                              ZTSFileName & vbCrLf & ex.Message)
+
+            Process.Start(fileName:=logFileName)
             End
+
         End Try
 
 
@@ -1811,8 +1863,13 @@ Module m_p2tmaker
             Next
 
             If out = String.Empty Then
-                add2Log(entry:="Can't parse crop from filename" & vbCrLf & ZTSFileName)
+
+                add2Log(entry:="Can't parse FOCUSsw runoff crop from filename" & vbCrLf &
+                        ZTSFileName)
+
+                Process.Start(fileName:=logFileName)
                 End
+
             End If
 
             Return out
@@ -1820,7 +1877,10 @@ Module m_p2tmaker
         Catch ex As Exception
 
             add2Log(entry:="Can't parse FOCUSsw runoff crop from filename" & vbCrLf &
-                               ZTSFileName & vbCrLf & ex.Message)
+                               ZTSFileName & vbCrLf &
+                               ex.Message)
+
+            Process.Start(fileName:=logFileName)
             End
 
         End Try
