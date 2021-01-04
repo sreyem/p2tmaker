@@ -441,42 +441,47 @@ Module m_p2tmaker
     Private Sub writeUsage(Optional Leadingstring As String = "*  ")
 
         Console.Clear()
-        Console.WriteLine(Leadingstring)
-        Console.WriteLine(Leadingstring)
-        Console.WriteLine(
+        add2Log(entry:=Leadingstring)
+        add2Log(entry:=Leadingstring)
+        add2Log(entry:=
             Join(
                 SourceArray:=getApplnInfo,
                 Delimiter:=vbCrLf))
-        Console.WriteLine(Leadingstring & "Usage:")
-        Console.WriteLine(Leadingstring)
-        Console.WriteLine(Leadingstring & "convert a single zts file")
-        Console.WriteLine(Leadingstring & "zts:='full zts file path'")
-        Console.WriteLine(Leadingstring & "OR")
-        Console.WriteLine(Leadingstring & "convert all zts files in a project directory")
-        Console.WriteLine(Leadingstring & "path:='full path to directory with zts files'")
-        Console.WriteLine(Leadingstring & "-------------------------------------------------")
-        Console.WriteLine(Leadingstring & "get ZTS files recursively")
-        Console.WriteLine(Leadingstring & "recursive:=true/false")
-        Console.WriteLine(Leadingstring & "-------------------------------------------------")
-        Console.WriteLine(Leadingstring & "if 'p2tmaker.exe' is in the project directory")
-        Console.WriteLine(Leadingstring & "it can be used without these two cmd line args")
-        Console.WriteLine(Leadingstring & "-------------------------------------------------")
-        Console.WriteLine(Leadingstring & "To skip warm up years, default = 0")
-        Console.WriteLine(Leadingstring & "warmup:=0")
-        Console.WriteLine(Leadingstring & "-------------------------------------------------")
-        Console.WriteLine(Leadingstring & "To set the mean residence time in days, default = 20days")
-        Console.WriteLine(Leadingstring & "mrt:=20")
-        Console.WriteLine(Leadingstring & "-------------------------------------------------")
-        Console.WriteLine(Leadingstring & "To set the max. precipitation per hour for")
-        Console.WriteLine(Leadingstring & "calculation of event duration in mm, default = 2mm")
-        Console.WriteLine(Leadingstring & "maxPREC:=2")
-        Console.WriteLine(Leadingstring & "-------------------------------------------------")
-        Console.WriteLine(Leadingstring & "GW_discharge calc. with exponential ")
-        Console.WriteLine(Leadingstring & "discharge formula, std. = false")
-        Console.WriteLine(Leadingstring & "exp:=true/false")
-        Console.WriteLine(Leadingstring & "-------------------------------------------------")
-        Console.WriteLine(Leadingstring)
-        Console.WriteLine(Leadingstring)
+        add2Log(entry:=Leadingstring & "Usage:")
+        add2Log(entry:=Leadingstring)
+        add2Log(entry:=Leadingstring & "convert a single zts file")
+        add2Log(entry:=Leadingstring & "zts:='full zts file path'")
+        add2Log(entry:=Leadingstring & "OR")
+        add2Log(entry:=Leadingstring & "convert all zts files in a project directory")
+        add2Log(entry:=Leadingstring & "path:='full path to directory with zts files'")
+        add2Log(entry:=Leadingstring & "-------------------------------------------------")
+        add2Log(entry:=Leadingstring & "get ZTS files recursively")
+        add2Log(entry:=Leadingstring & "recursive:=true/false")
+        add2Log(entry:=Leadingstring & "-------------------------------------------------")
+        add2Log(entry:=Leadingstring & "if 'p2tmaker.exe' is in the project directory")
+        add2Log(entry:=Leadingstring & "it can be used without these two cmd line args")
+        add2Log(entry:=Leadingstring & "-------------------------------------------------")
+        add2Log(entry:=Leadingstring & "To skip warm up years, default = 0")
+        add2Log(entry:=Leadingstring & "warmup:=0")
+        add2Log(entry:=Leadingstring & "-------------------------------------------------")
+        add2Log(entry:=Leadingstring & "To set the mean residence time in days, default = 20days")
+        add2Log(entry:=Leadingstring & "mrt:=20")
+        add2Log(entry:=Leadingstring & "-------------------------------------------------")
+        add2Log(entry:=Leadingstring & "To set the max. precipitation per hour for")
+        add2Log(entry:=Leadingstring & "calculation of event duration in mm, default = 2mm")
+        add2Log(entry:=Leadingstring & "maxPREC:=2")
+        add2Log(entry:=Leadingstring & "-------------------------------------------------")
+        add2Log(entry:=Leadingstring & "GW_discharge calc. with exponential ")
+        add2Log(entry:=Leadingstring & "discharge formula, std. = false")
+        add2Log(entry:=Leadingstring & "exp:=true/false")
+        add2Log(entry:=Leadingstring & "-------------------------------------------------")
+        add2Log(entry:=Leadingstring)
+        add2Log(entry:=Leadingstring)
+
+        For Each member As String In log
+            Console.WriteLine(member)
+        Next
+
 
     End Sub
 
@@ -588,6 +593,7 @@ Module m_p2tmaker
 
                 writeUsage()
 
+                Process.Start(fileName:=logFileName)
                 End
 
             Else
@@ -661,6 +667,8 @@ Module m_p2tmaker
                      tempFilter.First & vbCrLf &
                      ex.Message)
 
+                writeUsage()
+
                 Process.Start(fileName:=logFileName)
                 End
 
@@ -671,6 +679,7 @@ Module m_p2tmaker
         add2Log(
              entry:=((argWarmup).PadLeft(logLen) & WarmUp.ToString & "years").PadRight(stdPos) &
                         IIf(std, " (std.)", " *** user def. ***").ToString)
+
     End Sub
 
     Private Sub getMRT()
@@ -704,6 +713,8 @@ Module m_p2tmaker
                     "Error parsing cmd line for " & argMRT & vbCrLf &
                      tempFilter.First & vbCrLf &
                      ex.Message)
+
+                writeUsage()
 
                 Process.Start(fileName:=logFileName)
                 End
@@ -750,6 +761,8 @@ Module m_p2tmaker
                      tempFilter.First & vbCrLf &
                      ex.Message)
 
+                writeUsage()
+
                 Process.Start(fileName:=logFileName)
                 End
 
@@ -794,6 +807,8 @@ Module m_p2tmaker
                     "Error parsing cmd line for " & argEXP & vbCrLf &
                      tempFilter.First & vbCrLf &
                      ex.Message)
+
+                writeUsage()
 
                 Process.Start(fileName:=logFileName)
                 End
@@ -841,6 +856,8 @@ Module m_p2tmaker
                      tempFilter.First & vbCrLf &
                      ex.Message)
 
+                writeUsage()
+
                 Process.Start(fileName:=logFileName)
                 End
 
@@ -867,7 +884,12 @@ Module m_p2tmaker
         If argFilter.Count = 0 Then
             add2Log(entry:=
                        "No path for *.zts files in cmd line arguments ")
-            Exit Sub
+
+            writeUsage()
+
+            Process.Start(fileName:=logFileName)
+            End
+
         Else
 
             ZTSFilePath =
@@ -904,15 +926,18 @@ Module m_p2tmaker
                 add2Log(entry:=
                    "No *.zts files in path " & vbCrLf &
                     ZTSFilePath)
-                Exit Sub
+
+                writeUsage()
+
+                Process.Start(fileName:=logFileName)
+                End
+
             Else
 
                 ZTSfiles2go.AddRange(ZTSFiles)
 
                 add2Log(
                     entry:=(argPath).PadLeft(logLen) & ZTSFilePath)
-
-
 
                 If Not recursive Then
 
@@ -928,6 +953,7 @@ Module m_p2tmaker
                     Next
 
                 Else
+
                     add2Log(
                         entry:=("ZTS files:=").PadLeft(logLen) & ZTSfiles2go.Count.ToString("000"))
 
@@ -942,6 +968,8 @@ Module m_p2tmaker
                    "Error getting *.zts files from path  " & vbCrLf &
                     ZTSFilePath & vbCrLf &
                     ex.Message)
+
+            writeUsage()
 
             Process.Start(fileName:=logFileName)
             End
@@ -981,6 +1009,8 @@ Module m_p2tmaker
                     "Error parsing cmd line for " & argRecursive & vbCrLf &
                      tempFilter.First & vbCrLf &
                      ex.Message)
+
+                writeUsage()
 
                 Process.Start(fileName:=logFileName)
                 End
