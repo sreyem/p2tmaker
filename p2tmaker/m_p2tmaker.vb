@@ -809,7 +809,7 @@ Module m_p2tmaker
     Private Sub getSeasonOnly()
 
         Dim tempFilter As String() = {}
-        Dim std As Boolean = False
+        Dim std As Boolean = True
 
         tempFilter =
             Filter(
