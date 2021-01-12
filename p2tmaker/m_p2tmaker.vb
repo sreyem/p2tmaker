@@ -1587,7 +1587,6 @@ Module m_p2tmaker
             IRRG = 0
         End If
 
-
         If seasonOnly Then
 
             seasonStart = getSeasonStart(ZTSfile:=ZTSFile)
