@@ -82,7 +82,13 @@ Module m_p2tmaker
         ' and parse them
         getWarmUp()
 
-        getMRT()
+        getMonthlyAverage()
+
+        If Not monthlyAverage Then
+            getMRT()
+        End If
+
+        getSeasonOnly()
 
         getmaxPREC()
 
@@ -140,19 +146,23 @@ Module m_p2tmaker
 
                 'get crop from filename
                 Try
+
                     Crop = getPRZMCropFromFileName(ZTSFileName:=ZTSfiles2go.First)
                     add2Log(entry:=("Crop:=").PadLeft(logLen) & Crop)
+
+                    Scenario = getPRZMScenarioFromFilename(ZTSFileName:=ZTSFileName)
+                    add2Log(entry:=("Scenario:=").PadLeft(logLen) & Scenario)
+
                 Catch ex As Exception
                     add2Log(
                            entry:=("Parsing Error:=").PadLeft(logLen) &
-                           "Can' tparse crop name from filename " & vbCrLf &
+                           "Can't parse crop or scenario name from filename " & vbCrLf &
                            ZTSfiles2go.First & vbCrLf & ex.Message)
                 End Try
 
             Else
                 add2Log("")
             End If
-
 
             add2Log(
                 entry:=(" ").PadLeft(logLen) & " ****************************************************** ")
@@ -167,11 +177,14 @@ Module m_p2tmaker
 
             'init
             applns.Clear()
+            applnsSeason.Clear()
             p2tHeader.Clear()
             p2tDataParent.Clear()
             p2tDataMet01.Clear()
             p2tDataMet02.Clear()
             HeavyRain.Clear()
+            seasonStart = New Date
+            seasonEnd = New Date
             out.Clear()
 
             'get data
@@ -366,8 +379,8 @@ Module m_p2tmaker
     ' row where then header in the zts file starts
     Const ZTSHeaderRowNo As Integer = 2
     'format the log file
-    Private logLen As Integer = 15
-    Private stdPos As Integer = 25
+    Private logLen As Integer = 20
+    Private stdPos As Integer = 30
 
 
     ''' <summary>
@@ -503,6 +516,16 @@ Module m_p2tmaker
     Private MRT As Double = 20
 
     ''' <summary>
+    ''' use monthly average for INFL, std. = false
+    ''' </summary>
+    Private monthlyAverage As Boolean = False
+
+    ''' <summary>
+    ''' only old FOCUS season, std. = false
+    ''' </summary>
+    Private seasonOnly As Boolean = False
+
+    ''' <summary>
     ''' Max precipitation per hour in mm
     ''' used to calc. the event duration, std. = 2mm
     ''' Math.Round(PRCP / MaxPRECperHour, digits:=0, mode:=MidpointRounding.AwayFromZero)
@@ -550,7 +573,12 @@ Module m_p2tmaker
     Private SimStart As Date
     Private SimEnd As Date
 
+    Private seasonStart As New Date
+    Private seasonEnd As New Date
+
     Private applns As New List(Of String)
+    Private applnsSeason As New List(Of String)
+
     Private p2tHeader As New List(Of String)
     Private p2tDataParent As New List(Of String)
     Private p2tDataMet01 As New List(Of String)
@@ -565,6 +593,8 @@ Module m_p2tmaker
     Const argPath As String = "path:="
     Const argWarmup As String = "warmup:="
     Const argMRT As String = "mrt:="
+    Const argMonthlyAverage As String = "monthlyAverage:="
+    Const argSeasonOnly As String = "seasonOnly:="
     Const argMaxPRECperHour As String = "maxPREC:="
     Const argEXP As String = "exp:="
     Const argRecursive As String = "recursive:="
@@ -728,6 +758,101 @@ Module m_p2tmaker
                         IIf(std, " (std.)", " *** user def. ***").ToString)
 
     End Sub
+
+    Private Sub getMonthlyAverage()
+
+        Dim tempFilter As String() = {}
+        Dim std As Boolean = True
+
+        tempFilter =
+            Filter(
+                Source:=arguments.ToArray,
+                Match:=argMonthlyAverage,
+                Include:=True,
+                Compare:=CompareMethod.Text)
+
+        If tempFilter.Count = 1 Then
+
+            Try
+
+                monthlyAverage =
+                    CBool(Replace(
+                            Expression:=tempFilter.First,
+                            Find:=argMonthlyAverage,
+                            Replacement:="",
+                            Compare:=CompareMethod.Text))
+
+                std = False
+
+            Catch ex As Exception
+
+                add2Log(entry:=
+                    "Error parsing cmd line for " & argMonthlyAverage & vbCrLf &
+                     tempFilter.First & vbCrLf &
+                     ex.Message)
+
+                writeUsage()
+
+                Process.Start(fileName:=logFileName)
+                End
+
+            End Try
+
+        End If
+
+        add2Log(
+            entry:=((argMonthlyAverage).PadLeft(logLen) & monthlyAverage.ToString).PadRight(stdPos) &
+                        IIf(std, " (std.)", " *** user def. ***").ToString)
+
+    End Sub
+
+    Private Sub getSeasonOnly()
+
+        Dim tempFilter As String() = {}
+        Dim std As Boolean = False
+
+        tempFilter =
+            Filter(
+                Source:=arguments.ToArray,
+                Match:=argSeasonOnly,
+                Include:=True,
+                Compare:=CompareMethod.Text)
+
+        If tempFilter.Count = 1 Then
+
+            Try
+
+                seasonOnly =
+                    CBool(Replace(
+                            Expression:=tempFilter.First,
+                            Find:=argSeasonOnly,
+                            Replacement:="",
+                            Compare:=CompareMethod.Text))
+
+                std = False
+
+            Catch ex As Exception
+
+                add2Log(entry:=
+                    "Error parsing cmd line for " & argSeasonOnly & vbCrLf &
+                     tempFilter.First & vbCrLf &
+                     ex.Message)
+
+                writeUsage()
+
+                Process.Start(fileName:=logFileName)
+                End
+
+            End Try
+
+        End If
+
+        add2Log(
+            entry:=((argSeasonOnly).PadLeft(logLen) & seasonOnly.ToString).PadRight(stdPos) &
+                        IIf(std, " (std.)", " *** user def. ***").ToString)
+
+    End Sub
+
 
     Private Sub getmaxPREC()
 
@@ -1263,10 +1388,6 @@ Module m_p2tmaker
 
         Next
 
-        If posIRRG = -1 Then
-            add2Log(entry:="No 'IRRG' found in header, ignore irrigation!")
-        End If
-
     End Sub
 
 #End Region
@@ -1298,16 +1419,26 @@ Module m_p2tmaker
             'sim info
             .Add(LeadingString & "Crop                : " & Crop)
             .Add(LeadingString & "Scenario            : " & Scenario)
-            .Add(LeadingString & "Sim start           : " & SimStart.ToString("dd-MMM-yyyy") &
-                   (IIf(WarmUp <> 0, ", Warm up " & WarmUp & " years", "")).ToString)
 
-            .Add(LeadingString & "      end           : " & SimEnd.ToString("dd-MMM-yyyy"))
+            If seasonOnly Then
+                .Add(LeadingString & "Season start        : " & seasonStart.ToString("dd-MMM-yyyy"))
+
+                .Add(LeadingString & "       end          : " & seasonEnd.ToString("dd-MMM-yyyy"))
+                .Add(LeadingString & "Applns per season   : " & applnsSeason.Count.ToString("00"))
+
+            Else
+                .Add(LeadingString & "Sim start           : " & SimStart.ToString("dd-MMM-yyyy") &
+                                   (IIf(WarmUp <> 0, ", Warm up " & WarmUp & " years", "")).ToString)
+
+                .Add(LeadingString & "      end           : " & SimEnd.ToString("dd-MMM-yyyy"))
+
+                ApplnsPerSeason = CInt(Math.Round(applns.Count / (SimEnd.Year - SimStart.Year + 1), digits:=0))
+                .Add(LeadingString & "Applns per season   : " & ApplnsPerSeason.ToString("00"))
+            End If
 
 
-            ApplnsPerSeason = CInt(Math.Round(applns.Count / (SimEnd.Year - SimStart.Year + 1), digits:=0))
 
 
-            .Add(LeadingString & "Applns per season   : " & ApplnsPerSeason.ToString("00"))
 
             'parent or met01/met02, must start with '*  Chemical:  ' to fit with txw info
             If ParMet = eParMet.Par Then
@@ -1332,7 +1463,13 @@ Module m_p2tmaker
 
             .Add(LeadingString)
             .Add(LeadingString & "Total number of applns ")
-            .Add("#    " & applns.Count)
+
+            If seasonOnly Then
+                .Add("#    " & applnsSeason.Count)
+            Else
+                .Add("#    " & applns.Count)
+            End If
+
             .Add(LeadingString)
 
             .Add(LeadingString)
@@ -1340,7 +1477,13 @@ Module m_p2tmaker
             'appln info
             .Add(LeadingString & "Number of      Time                       Mass ")
             .Add(LeadingString & "Application    dd-MMM-YYYY-hh:mm          (g ai/ha)")
-            .AddRange(applns)
+
+            If seasonOnly Then
+                .AddRange(applnsSeason)
+            Else
+                .AddRange(applns)
+            End If
+
             .Add(LeadingString)
 
 
@@ -1358,6 +1501,8 @@ Module m_p2tmaker
     End Function
 
     Private Function createP2T(ZTSFileName As String) As Boolean
+
+#Region "    Definitions"
 
         Dim ZTSFile As String() = {}
         Dim tempString As String = String.Empty
@@ -1385,10 +1530,17 @@ Module m_p2tmaker
 
         Dim GW_discharge As Double = 0
         Dim GW_storage As Double = 0
+        Dim infiltration As Double = 0
         Dim Timestep As Integer = 1
+
+        Dim monthlyAverageINFL As Double = Double.NaN
+        Dim oldDate As Date = Nothing
+
+#End Region
 
         'get zts file
         Try
+
             ZTSFile = File.ReadAllLines(ZTSFileName)
 
             'check for valid zts file
@@ -1432,6 +1584,27 @@ Module m_p2tmaker
         'no 'IRRG found : set irrigation to 0
         If posIRRG = -1 Then
             add2Log("No 'IRRG' info found, set to 0!")
+            IRRG = 0
+        End If
+
+
+        If seasonOnly Then
+
+            seasonStart = getSeasonStart(ZTSfile:=ZTSFile)
+
+            If seasonStart = New Date Then
+                seasonOnly = False
+                add2Log("Can't get PRZM Season! Switch to 'seasonOnly = False' ")
+            Else
+
+                seasonEnd = seasonStart.AddYears(1).AddDays(-1)
+                add2Log(
+                    "PRZM Season:=".PadLeft(logLen) &
+                    seasonStart.ToLongDateString & " to " &
+                    seasonEnd.ToLongDateString)
+
+            End If
+
         End If
 
         For RowCounter As Integer = ZTSDataStartRowNo To ZTSFile.Count - 1
@@ -1441,6 +1614,7 @@ Module m_p2tmaker
                     separator:={" "c},
                     options:=StringSplitOptions.RemoveEmptyEntries)
 
+            'get event date
             Try
                 EventDate =
                     New Date(
@@ -1460,13 +1634,15 @@ Module m_p2tmaker
             End Try
 
 
+
+            'get sim start / end
             If RowCounter = ZTSDataStartRowNo Then
                 SimStart = EventDate
             ElseIf RowCounter = ZTSFile.Count - 1 Then
                 SimEnd = EventDate
             End If
 
-            'parent
+            'basic & parent
             Try
 
                 RUNF = CDbl(tempArray(eZTSHeader.RUNF))
@@ -1508,7 +1684,7 @@ Module m_p2tmaker
 
             End If
 
-
+            'Met01
             If Met01 <> String.Empty Then
 
                 Try
@@ -1530,6 +1706,7 @@ Module m_p2tmaker
 
             End If
 
+            'Met02
             If Met02 <> String.Empty Then
 
                 Try
@@ -1615,40 +1792,76 @@ Module m_p2tmaker
 #End Region
 
             'check for warm-up years
-            If SimStart.AddYears(WarmUp) > EventDate Then Continue For
+            If SimStart.AddYears(WarmUp) > EventDate AndAlso
+               Not seasonOnly Then Continue For
 
-            p2tDataParent.AddRange(
+            If Not seasonOnly OrElse
+                    (EventDate >= seasonStart AndAlso
+                    EventDate <= seasonEnd) Then
+
+                'calc monthly average INFL
+                If monthlyAverage Then
+
+                    If oldDate = New Date OrElse
+                   oldDate.Month <> EventDate.Month Then
+
+                        oldDate = EventDate
+
+                        monthlyAverageINFL =
+                            getMonthlyAverageINFL(
+                            eventDate:=EventDate,
+                            ZTSfile:=ZTSFile)
+
+                    End If
+
+                End If
+
+                ' ... and use it if selected
+                If monthlyAverage Then
+                    infiltration = monthlyAverageINFL
+                Else
+                    infiltration = GW_discharge
+                End If
+
+                p2tDataParent.AddRange(
+            createP2TDay(
+                EventDate:=EventDate,
+                EventDuration:=EventDuration,
+                RUNF:=RUNF,
+                EFLX:=EFLX1,
+                ESLS:=ESLS,
+                RFLX:=RFLX1,
+                IRRG:=IRRG,
+                infiltration:=infiltration))
+
+                If Met01 <> String.Empty Then
+                    p2tDataMet01.AddRange(
                 createP2TDay(
                     EventDate:=EventDate,
                     EventDuration:=EventDuration,
                     RUNF:=RUNF,
-                    EFLX:=EFLX1,
+                    EFLX:=EFLX2,
                     ESLS:=ESLS,
-                    RFLX:=RFLX1,
-                    GW_discharge:=GW_discharge))
+                    RFLX:=RFLX2,
+                    IRRG:=IRRG,
+                    infiltration:=infiltration))
 
-            If Met01 <> String.Empty Then
-                p2tDataMet01.AddRange(
-                   createP2TDay(
-                       EventDate:=EventDate,
-                       EventDuration:=EventDuration,
-                       RUNF:=RUNF,
-                       EFLX:=EFLX2,
-                       ESLS:=ESLS,
-                       RFLX:=RFLX2,
-                       GW_discharge:=GW_discharge))
-            End If
+                End If
 
-            If Met02 <> String.Empty Then
-                p2tDataMet02.AddRange(
-                   createP2TDay(
-                       EventDate:=EventDate,
-                       EventDuration:=EventDuration,
-                       RUNF:=RUNF,
-                       EFLX:=EFLX3,
-                       ESLS:=ESLS,
-                       RFLX:=RFLX3,
-                       GW_discharge:=GW_discharge))
+                If Met02 <> String.Empty Then
+                    p2tDataMet02.AddRange(
+                createP2TDay(
+                    EventDate:=EventDate,
+                    EventDuration:=EventDuration,
+                    RUNF:=RUNF,
+                    EFLX:=EFLX3,
+                    ESLS:=ESLS,
+                    RFLX:=RFLX3,
+                    IRRG:=IRRG,
+                    infiltration:=infiltration))
+
+                End If
+
             End If
 
         Next
@@ -1657,6 +1870,48 @@ Module m_p2tmaker
 
     End Function
 
+
+    Private Function getMonthlyAverageINFL(eventDate As Date,
+                                           ZTSfile As String()) As Double
+
+        Const firstPart As String = " TSR PRZ  "
+        Dim searchString As String = ""
+        Dim targetMonth As String() = {}
+        Dim sumOfINFL As Double = 0
+        Dim temp As String
+
+        ' TSR PRZ  1975  1  1
+        ' TSR PRZ  1975  1 10
+        ' TSR PRZ  1975 10  1
+        ' TSR PRZ  1975 10 10
+        With eventDate
+            searchString =
+                firstPart &
+                .Year.ToString &
+                .Month.ToString.PadLeft("  1".Length)
+        End With
+
+        targetMonth =
+            Filter(
+                Source:=ZTSfile,
+                Match:=searchString,
+                Include:=True,
+                Compare:=CompareMethod.Text)
+
+        For Each row As String In targetMonth
+
+            temp = row.Split(
+                    separator:={" "c},
+                    options:=StringSplitOptions.RemoveEmptyEntries)(eZTSHeader.INFL)
+
+            sumOfINFL +=
+               Double.Parse(s:=temp)
+
+        Next
+
+        Return sumOfINFL / targetMonth.Count
+
+    End Function
 
 #Region "    create p2t day"
 
@@ -1667,11 +1922,11 @@ Module m_p2tmaker
                     RFLX As Double,
                     ESLS As Double,
                     EFLX As Double,
-                    GW_discharge As Double) As String()
+                    IRRG As Double,
+                    infiltration As Double) As String()
 
         Dim out As New List(Of String)
         Dim tempString As String = String.Empty
-
 
         Try
 
@@ -1682,11 +1937,11 @@ Module m_p2tmaker
                     tempString =
                         (EventDate.ToString("dd-MMM-yyyy") &
                             "-" & HourCounter.ToString("00") & ":00").PadLeft("  01-Jan-1978-01:00".Length) &
-                    ("0" & (RUNF / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
+                    ("0" & ((RUNF + IRRG) / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
                     ("0" & (RFLX / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
                     ("0" & (ESLS / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
                     ("0" & (EFLX / EventDuration).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length) &
-                    ("0" & (GW_discharge / 24).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length)
+                    ("0" & (infiltration / 24).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length)
 
                     out.Add(tempString)
 
@@ -1695,7 +1950,7 @@ Module m_p2tmaker
                     out.Add((EventDate.ToString("dd-MMM-yyyy") &
                             "-" & HourCounter.ToString("00") & ":00").PadLeft("  01-Jan-1978-01:00".Length) &
                           "     0.0000E+00     0.0000E+00     0.0000E+00     0.0000E+00" &
-                    ("0" & (GW_discharge / 24).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length))
+                    ("0" & (infiltration / 24).ToString(".0000E+00")).PadLeft("     0.0000E+00".Length))
 
                 End If
 
@@ -1710,7 +1965,8 @@ Module m_p2tmaker
                 "RFLX : " & RFLX & vbCrLf &
                 "ESLS : " & ESLS & vbCrLf &
                 "EFLX : " & EFLX & vbCrLf &
-                "GW Discharge   : " & GW_discharge & vbCrLf &
+                "IRRG : " & IRRG & vbCrLf &
+                "infiltration   : " & infiltration & vbCrLf &
                 "Event Duration : " & EventDuration & vbCrLf &
                 ex.Message)
 
@@ -1762,6 +2018,38 @@ Module m_p2tmaker
 
 #End Region
 
+    Private Function getSeasonStart(ZTSfile As String()) As Date
+
+        Dim temp As String() = {}
+        Dim firstApplnDate As Date
+
+        For rowCounter As Integer = ZTSDataStartRowNo To ZTSDataStartRowNo + 365
+
+            temp =
+                ZTSfile(rowCounter).Split(
+                            separator:={" "c},
+                            options:=StringSplitOptions.RemoveEmptyEntries)
+
+            If CDbl(temp(posTPAP)) <> 0 Then
+
+                firstApplnDate =
+                    New Date(
+                        year:=CInt(temp(eZTSHeader.EventYear)),
+                        month:=CInt(temp(eZTSHeader.EventMonth)),
+                        day:=CInt(temp(eZTSHeader.EventDay)))
+
+                Return getPRZMSeasonStart(
+                            PRZMswScenario:=Scenario.Substring(0, 2),
+                            ApplnMonth:=firstApplnDate.Month)
+
+            End If
+
+        Next
+
+        Return New Date
+
+    End Function
+
     Private Sub addAppln2List(
                     Eventdate As Date,
                     TPAP As Double)
@@ -1788,10 +2076,34 @@ Module m_p2tmaker
         End Try
 
 
+        If seasonOnly AndAlso
+                    Eventdate >= seasonStart AndAlso
+                    Eventdate <= seasonEnd Then
+
+            Try
+                tempString = "#  " & (applnsSeason.Count + 1).ToString("00").PadRight("01             ".Length) &
+                        (Eventdate.ToString("dd-MMM-yyyy") & "-09:00").PadRight("01-Jan-1975-09:00          ".Length) &
+                        (TPAP * 100000000).ToString("0.00")
+
+                applnsSeason.Add(tempString)
+            Catch ex As Exception
+
+                add2Log(
+                entry:="Error adding appln to SEASON list" &
+                "Date : " & Eventdate.ToLongDateString & vbCrLf &
+                "TPAP : " & TPAP & vbCrLf &
+                ex.Message)
+
+                Process.Start(fileName:=logFileName)
+                End
+
+            End Try
+
+        End If
+
     End Sub
 
 #Region "    get crop and scenario name from ZTS file name"
-
 
     Private Function getPRZMScenarioFromFilename(ZTSFileName As String) As String
 
@@ -1977,5 +2289,106 @@ Module m_p2tmaker
     }
 
 #End Region
+
+
+    Public Function getPRZMSeasonStart(
+                                        PRZMswScenario As String,
+                                        ApplnMonth As Integer) As Date
+
+
+        Select Case PRZMswScenario
+
+            Case "R1"
+
+                Select Case ApplnMonth
+
+                    Case 3, 4, 5
+                        Return New Date(year:=1984,
+                                       month:=3,
+                                         day:=1)
+
+                    Case 6, 7, 8, 9
+                        Return New Date(year:=1978,
+                                       month:=6,
+                                         day:=1)
+
+                    Case Else
+                        Return New Date(year:=1978,
+                                       month:=10,
+                                         day:=1)
+
+                End Select
+
+            Case "R2"
+
+                Select Case ApplnMonth
+
+                    Case 3, 4, 5
+                        Return New Date(year:=1977,
+                                       month:=3,
+                                         day:=1)
+
+                    Case 6, 7, 8, 9
+                        Return New Date(year:=1989,
+                                       month:=6,
+                                         day:=1)
+
+                    Case Else
+                        Return New Date(year:=1977,
+                                       month:=10,
+                                         day:=1)
+
+                End Select
+
+            Case "R3"
+
+                Select Case ApplnMonth
+
+                    Case 3, 4, 5
+                        Return New Date(year:=1980,
+                                       month:=3,
+                                         day:=1)
+
+                    Case 6, 7, 8, 9
+                        Return New Date(year:=1975,
+                                       month:=6,
+                                         day:=1)
+
+                    Case Else
+                        Return New Date(year:=1980,
+                                       month:=10,
+                                         day:=1)
+
+                End Select
+
+            Case "R4"
+
+                Select Case ApplnMonth
+
+                    Case 3, 4, 5
+                        Return New Date(year:=1984,
+                                       month:=3,
+                                         day:=1)
+
+                    Case 6, 7, 8, 9
+                        Return New Date(year:=1985,
+                                       month:=6,
+                                         day:=1)
+
+                    Case Else
+                        Return New Date(year:=1979,
+                                       month:=10,
+                                         day:=1)
+
+                End Select
+
+            Case Else
+
+                Return New Date
+
+        End Select
+
+    End Function
+
 
 End Module
