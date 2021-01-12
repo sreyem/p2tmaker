@@ -25,6 +25,8 @@ Calculation of GW storage and discharge
  
 + with  MRT = Mean residence time in days, std. = 20d
 
++ Event duration = (PREC + IRRG) / maxPRECperHour
+
 -------------------------------------------------
 
 ## Usage
