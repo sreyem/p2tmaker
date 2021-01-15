@@ -6,8 +6,11 @@ Module m_p2tmaker
     Private log As New List(Of String)
     Private logFileName As String = String.Empty
     Private HeavyRainLimit As Double = 50
+    Private maxRain As Double = Double.NaN
+    Private twiceHeavyRain As Integer = 0
     Private reportHeavyRain As Boolean = False
     Private reportSnowMelt As Boolean = False
+    Private reportIrrigation As Boolean = False
     Private p2tFileInfo As FileInfo
 
 
@@ -125,18 +128,16 @@ Module m_p2tmaker
                 OldPRZMRunDir = PRZMRunDir
 
                 add2Log("")
-                If recursive Then
 
-                    add2Log(
-                       entry:=(" ").PadLeft(logLen) & " ****************************************************** ")
+                add2Log(
+                    entry:=(" ").PadLeft(logLen) & " ****************************************************** ")
 
-                    add2Log(
-                     entry:=("Actual path:=").PadLeft(logLen) & Path.GetDirectoryName(path:=ZTSFileName))
+                add2Log(
+                    entry:=("Actual path:=").PadLeft(logLen) & Path.GetDirectoryName(path:=ZTSFileName))
 
-                    add2Log(
-                      entry:=(" ").PadLeft(logLen) & " ****************************************************** ")
+                add2Log(
+                    entry:=(" ").PadLeft(logLen) & " ****************************************************** ")
 
-                End If
 
                 'get cmp names from master.fpj
                 getCMPNames()
@@ -147,7 +148,7 @@ Module m_p2tmaker
                 'get crop from filename
                 Try
 
-                    Crop = getPRZMCropFromFileName(ZTSFileName:=ZTSfiles2go.First)
+                    Crop = getPRZMCropFromFileName(ZTSFileName:=ZTSFileName)
                     add2Log(entry:=("Crop:=").PadLeft(logLen) & Crop)
 
                     Scenario = getPRZMScenarioFromFilename(ZTSFileName:=ZTSFileName)
@@ -183,6 +184,9 @@ Module m_p2tmaker
             p2tDataMet01.Clear()
             p2tDataMet02.Clear()
             HeavyRain.Clear()
+            twiceHeavyRain = 0
+            maxRain = 0
+            irrigation.Clear()
             seasonStart = New Date
             seasonEnd = New Date
             out.Clear()
@@ -194,6 +198,26 @@ Module m_p2tmaker
                 Console.Beep()
                 add2Log(entry:="Major error creating p2t data")
                 Continue For
+
+            End If
+
+            If irrigation.Count <> 0 Then
+                add2Log(
+                    entry:=("Irrigation:=").PadLeft(logLen) & "true")
+            Else
+                add2Log(
+                    entry:=("Irrigation:=").PadLeft(logLen) & "false")
+            End If
+
+            If HeavyRain.Count <> 0 Then
+                add2Log(
+                   entry:=("Rain > " & HeavyRainLimit & "mm :=").PadLeft(logLen) & HeavyRain.Count & " times")
+
+                add2Log(
+                   entry:=("Rain > 2*" & HeavyRainLimit & "mm:=").PadLeft(logLen) & twiceHeavyRain & " times")
+
+                add2Log(
+                   entry:=("Max rainfall:=").PadLeft(logLen) & maxRain & " mm")
 
             End If
 
@@ -366,6 +390,14 @@ Module m_p2tmaker
                         Delimiter:=vbCrLf))
             End If
 
+            If reportIrrigation Then
+                add2Log("")
+                add2Log("Irrigation dates and volumes")
+                add2Log(
+                    Join(
+                        SourceArray:=irrigation.ToArray,
+                        Delimiter:=vbCrLf))
+            End If
 
         Next
 
@@ -585,7 +617,7 @@ Module m_p2tmaker
     Private p2tDataMet02 As New List(Of String)
 
     Private HeavyRain As New List(Of String)
-
+    Private irrigation As New List(Of String)
 
 #Region "    get and parse CMD line arguments"
 
@@ -1419,6 +1451,7 @@ Module m_p2tmaker
             'sim info
             .Add(LeadingString & "Crop                : " & Crop)
             .Add(LeadingString & "Scenario            : " & Scenario)
+            .Add(LeadingString & "Tier                : " & "Step 03")
 
             If seasonOnly Then
                 .Add(LeadingString & "Season start        : " & seasonStart.ToString("dd-MMM-yyyy"))
@@ -1655,7 +1688,14 @@ Module m_p2tmaker
                 TPAP = CDbl(tempArray(posTPAP))
 
                 If posIRRG <> -1 Then
+
                     IRRG = CDbl(tempArray(posIRRG))
+
+                    If IRRG <> 0 Then
+                        irrigation.Add(
+                            EventDate.ToShortDateString.PadRight("00.00.0000  ".Length) & IRRG & "mm")
+                    End If
+
                 Else
                     IRRG = 0
                 End If
@@ -1678,8 +1718,6 @@ Module m_p2tmaker
                 addAppln2List(
                     Eventdate:=EventDate,
                     TPAP:=TPAP)
-
-                'add2Log(entry:=("Appln:=").PadLeft(logLen) & applns.Last)
 
             End If
 
@@ -1736,7 +1774,7 @@ Module m_p2tmaker
                         IRRG:=IRRG,
                         RUNF:=RUNF)
 
-            If EventDuration = 12 And PRCP = 0 And reportSnowMelt Then
+            If EventDuration = 12 AndAlso PRCP = 0 AndAlso reportSnowMelt Then
 
                 add2Log(entry:=("Snow melt:=").PadLeft(logLen) &
                       ("at " &
@@ -1749,7 +1787,13 @@ Module m_p2tmaker
                      PRCP.ToString("0.0").PadLeft(5) & "mm at " &
                     EventDate.ToString("dd-MMM-yyyy"))
 
+                If PRCP >= 2 * HeavyRainLimit Then
+                    twiceHeavyRain += 1
+                End If
+
             End If
+
+            If PRCP >= maxRain Then maxRain = PRCP
 
 #End Region
 
