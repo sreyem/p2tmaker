@@ -151,8 +151,8 @@ Module m_p2tmaker
                     Crop = getPRZMCropFromFileName(ZTSFileName:=ZTSFileName)
                     add2Log(entry:=("Crop:=").PadLeft(logLen) & Crop)
 
-                    Scenario = getPRZMScenarioFromFilename(ZTSFileName:=ZTSFileName)
-                    add2Log(entry:=("Scenario:=").PadLeft(logLen) & Scenario)
+                    'Scenario = getPRZMScenarioFromFilename(ZTSFileName:=ZTSFileName)
+                    'add2Log(entry:=("Scenario:=").PadLeft(logLen) & Scenario)
 
                 Catch ex As Exception
                     add2Log(
@@ -165,11 +165,15 @@ Module m_p2tmaker
                 add2Log("")
             End If
 
+
             add2Log(
                 entry:=(" ").PadLeft(logLen) & " ****************************************************** ")
 
             add2Log(
                 entry:=("ZTS:=").PadLeft(logLen) & ZTSFileName)
+
+            Scenario = getPRZMScenarioFromFilename(ZTSFileName:=ZTSFileName)
+            add2Log(entry:=("Scenario:=").PadLeft(logLen) & Scenario)
 
             If Met01 = String.Empty Then
                 add2Log(
@@ -636,6 +640,7 @@ Module m_p2tmaker
         Dim PathOrZTS As New List(Of String)
 
         Try
+
             With arguments
 
                 .AddRange(Environment.GetCommandLineArgs())
@@ -1616,7 +1621,7 @@ Module m_p2tmaker
 
         'no 'IRRG found : set irrigation to 0
         If posIRRG = -1 Then
-            add2Log("No 'IRRG' info found, set to 0!")
+            add2Log(" ".PadLeft(logLen) & "No 'IRRG' info found, set to 0!")
             IRRG = 0
         End If
 
