@@ -71,6 +71,7 @@ Module m_p2tmaker
         'final output
         Dim out As New List(Of String)
         Dim P2TFileName As String = String.Empty
+        Dim SWASHNameKonvention As Boolean
 
         'get cmd line arguments
         getCMDArgs()
@@ -83,6 +84,9 @@ Module m_p2tmaker
                 Delimiter:=vbCrLf))
 
         ' and parse them
+
+        getDescription()
+
         getWarmUp()
 
         getMonthlyAverage()
@@ -140,10 +144,10 @@ Module m_p2tmaker
 
 
                 'get cmp names from master.fpj
-                getCMPNames()
+                getCMPNames(baseName:=Path.GetFileNameWithoutExtension(ZTSFileName))
 
                 'get SWASH numbers from przm.pzm
-                getSWASHNos()
+                SWASHNameKonvention = getSWASHNos()
 
                 'get crop from filename
                 Try
@@ -170,7 +174,7 @@ Module m_p2tmaker
                 entry:=(" ").PadLeft(logLen) & " ****************************************************** ")
 
             add2Log(
-                entry:=("ZTS:=").PadLeft(logLen) & ZTSFileName)
+                entry:=("ZTS:=").PadLeft(logLen) & Path.GetFileName(ZTSFileName))
 
             Scenario = getPRZMScenarioFromFilename(ZTSFileName:=ZTSFileName)
             add2Log(entry:=("Scenario:=").PadLeft(logLen) & Scenario)
@@ -222,7 +226,6 @@ Module m_p2tmaker
 
                 add2Log(
                    entry:=("Max rainfall:=").PadLeft(logLen) & maxRain & " mm")
-
             End If
 
             If Not createHeader(
@@ -240,9 +243,16 @@ Module m_p2tmaker
 
             Try
 
-                P2TFileName = Path.Combine(
-                                PRZMRunDir,
-                                SWASHno.ToString("00000") & "-C1.p2t")
+                If SWASHno <> -99 Then
+                    P2TFileName = Path.Combine(
+                                        PRZMRunDir,
+                                        SWASHno.ToString("00000") & "-C1.p2t")
+                Else
+                    P2TFileName = Path.Combine(
+                                    PRZMRunDir,
+                                    Path.GetFileNameWithoutExtension(
+                                            path:=ZTSFileName) & "-" & Parent & ".p2t")
+                End If
 
                 File.WriteAllLines(
                         path:=P2TFileName,
@@ -261,7 +271,7 @@ Module m_p2tmaker
 
                     Else
                         add2Log(
-                            entry:=(Parent & " p2t:=").PadLeft(logLen) & .FullName)
+                            entry:=(Parent & " p2t:=").PadLeft(logLen) & .Name)
                         add2Log(
                            entry:=(" ").PadLeft(logLen) & Math.Round(.Length / 1000000, 0) & "MB")
                     End If
@@ -291,9 +301,17 @@ Module m_p2tmaker
 
                 Try
 
-                    P2TFileName = Path.Combine(
-                                    PRZMRunDir,
-                                    SWASHno.ToString("00000") & "-C2.p2t")
+                    If SWASHno <> -99 Then
+                        P2TFileName = Path.Combine(
+                                        PRZMRunDir,
+                                        SWASHno.ToString("00000") & "-C2.p2t")
+                    Else
+                        P2TFileName = Path.Combine(
+                                            PRZMRunDir,
+                                            Path.GetFileNameWithoutExtension(
+                                                path:=ZTSFileName) & "-" & Met01 & ".p2t")
+                    End If
+
 
                     File.WriteAllLines(
                             path:=P2TFileName,
@@ -343,9 +361,16 @@ Module m_p2tmaker
 
                 Try
 
-                    P2TFileName = Path.Combine(
-                                    PRZMRunDir,
-                                    SWASHno.ToString("00000") & "-C3.p2t")
+                    If SWASHno <> -99 Then
+                        P2TFileName = Path.Combine(
+                                        PRZMRunDir,
+                                        SWASHno.ToString("00000") & "-C3.p2t")
+                    Else
+                        P2TFileName = Path.Combine(
+                                            PRZMRunDir,
+                                            Path.GetFileNameWithoutExtension(
+                                                path:=ZTSFileName) & "-" & Met02 & ".p2t")
+                    End If
 
                     File.WriteAllLines(
                             path:=P2TFileName,
@@ -576,6 +601,11 @@ Module m_p2tmaker
     Private WarmUp As Integer = 0
 
     ''' <summary>
+    ''' add Description to the p2t file header
+    ''' </summary>
+    Private description As String = String.Empty
+
+    ''' <summary>
     ''' GW_discharge  calc. with exponential discharge formula, std. = false
     ''' </summary>
     ''' <remarks></remarks>
@@ -634,6 +664,7 @@ Module m_p2tmaker
     Const argMaxPRECperHour As String = "maxPREC:="
     Const argEXP As String = "exp:="
     Const argRecursive As String = "recursive:="
+    Const argDescription As String = "description:="
 
     Private Sub getCMDArgs()
 
@@ -702,6 +733,49 @@ Module m_p2tmaker
 
     End Sub
 
+    Private Sub getDescription()
+
+        Dim tempFilter As String() = {}
+        Dim std As Boolean = True
+
+        tempFilter =
+            Filter(
+                Source:=arguments.ToArray,
+                Match:=argDescription,
+                Include:=True,
+                Compare:=CompareMethod.Text)
+
+        If tempFilter.Count = 1 Then
+
+            Try
+
+                description =
+                    Replace(
+                        Expression:=tempFilter.First,
+                        Find:=argDescription,
+                        Replacement:="",
+                        Compare:=CompareMethod.Text)
+
+                std = False
+
+            Catch ex As Exception
+
+                add2Log(entry:=
+                    "Error parsing cmd line for " & argDescription & vbCrLf &
+                     tempFilter.First & vbCrLf &
+                     ex.Message)
+
+                writeUsage()
+
+                Process.Start(fileName:=logFileName)
+                End
+
+            End Try
+
+        End If
+
+    End Sub
+
     Private Sub getWarmUp()
 
         Dim tempFilter As String() = {}
@@ -744,7 +818,7 @@ Module m_p2tmaker
         End If
 
         add2Log(
-             entry:=((argWarmup).PadLeft(logLen) & WarmUp.ToString & "years").PadRight(stdPos) &
+             entry:=((argWarmup).PadLeft(logLen) & WarmUp.ToString & " years").PadRight(stdPos) &
                         IIf(std, " (std.)", " *** user def. ***").ToString)
 
     End Sub
@@ -889,7 +963,6 @@ Module m_p2tmaker
                         IIf(std, " (std.)", " *** user def. ***").ToString)
 
     End Sub
-
 
     Private Sub getmaxPREC()
 
@@ -1191,106 +1264,241 @@ Module m_p2tmaker
 
 #Region "    get header info"
 
-    Private Sub getCMPNames()
+    Private Sub getCMPNames(baseName As String)
 
         Const Filename As String = "MASTER.FPJ"
         Const CMPSearchString As String = "  Chemical Name:"
 
+        Const inpSearchString As String = "Chemical Input Data:"
+        Dim index As Integer
+
         Dim MasterFPJ As String() = {}
+        Dim inpFilePath As String
+        Dim inpFile As String() = {}
+        Dim compoundNames As String()
 
         Try
 
+            'MASTER.FPJ or *.inp
+            If File.Exists(
+                    Path.Combine(
+                        path1:=PRZMRunDir,
+                        path2:=Filename)) Then
+
                 add2Log(
-                    entry:=("Reading:=").PadLeft(logLen) &
-                    Filename)
+                        entry:=("Reading:=").PadLeft(logLen) &
+                        Filename & " to get compound name(s)")
 
-            MasterFPJ =
-                File.ReadAllLines(
-                    path:=Path.Combine(PRZMRunDir,
-                                       Filename))
+                Try
+                    MasterFPJ =
+                        File.ReadAllLines(
+                            path:=Path.Combine(PRZMRunDir,
+                                                Filename))
+                Catch ex As Exception
 
-            MasterFPJ =
-                Filter(
-                    Source:=MasterFPJ,
-                    Match:=CMPSearchString,
-                    Include:=True,
-                    Compare:=CompareMethod.Text)
-
-            MasterFPJ(0) =
-                Replace(
-                    Expression:=MasterFPJ(0),
-                    Find:=CMPSearchString,
-                    Replacement:="",
-                    Compare:=CompareMethod.Text)
-
-            MasterFPJ =
-                MasterFPJ(0).Split(
-                    separator:={" "c},
-                    options:=StringSplitOptions.RemoveEmptyEntries)
-
-            Select Case MasterFPJ.Count
-
-                Case 1
-                    Parent = MasterFPJ.First
-                    add2Log(
-                        entry:=("Parent:=").PadLeft(logLen) & Parent)
-                Case 2
-                    Parent = MasterFPJ.First
-                    Met01 = MasterFPJ.Last
-
-                    add2Log(
-                        entry:=("Parent:=").PadLeft(logLen) & Parent)
-                    add2Log(
-                        entry:=("Met 01:=").PadLeft(logLen) & Met01)
-
-                Case 3
-
-                    Parent = MasterFPJ(0)
-                    Met01 = MasterFPJ(1)
-                    Met02 = MasterFPJ(2)
-
-                    add2Log(
-                        entry:=("Parent:=").PadLeft(logLen) & Parent)
-                    add2Log(
-                        entry:=("Met 01:=").PadLeft(logLen) & Met01)
-                    add2Log(
-                        entry:=("Met 02:=").PadLeft(logLen) & Met02)
-
-                Case Else
                     add2Log(entry:=
-                        "Fatal Error reading MASTER.FPJ file to parse for compound names" & vbCrLf &
-                        "more than 2 metabolites defined" & vbCrLf &
-                        Join(SourceArray:=MasterFPJ, Delimiter:=vbCrLf) & vbCrLf &
-                        Path.Combine(
-                            PRZMRunDir,
-                            Filename))
+                            "Fatal Error reading MASTER.FPJ file to parse for compound names" & vbCrLf &
+                            "MASTER.FPJ ?: " & Path.Combine(
+                                PRZMRunDir,
+                                Filename) & vbCrLf &
+                                ex.Message)
 
                     Process.Start(fileName:=logFileName)
                     End
 
-            End Select
+                End Try
 
-            'at least a parent must be given
-            If Parent = String.Empty OrElse
-               MasterFPJ.Count = 2 And Met01 = String.Empty OrElse
-               MasterFPJ.Count = 3 And (Met01 = String.Empty Or Met02 = String.Empty) Then
 
-                add2Log(entry:=
-                    "Fatal Error reading MASTER.FPJ file to parse for compound names" & vbCrLf &
-                     Join(SourceArray:=MasterFPJ, Delimiter:=vbCrLf) & vbCrLf &
-                    Path.Combine(
-                        PRZMRunDir,
-                        Filename))
+                MasterFPJ =
+                    Filter(
+                        Source:=MasterFPJ,
+                        Match:=CMPSearchString,
+                        Include:=True,
+                        Compare:=CompareMethod.Text)
 
-                Process.Start(fileName:=logFileName)
-                End
+                MasterFPJ(0) =
+                    Replace(
+                        Expression:=MasterFPJ(0),
+                        Find:=CMPSearchString,
+                        Replacement:="",
+                        Compare:=CompareMethod.Text)
+
+                MasterFPJ =
+                    MasterFPJ(0).Split(
+                        separator:={" "c},
+                        options:=StringSplitOptions.RemoveEmptyEntries)
+
+                Select Case MasterFPJ.Count
+
+                    Case 0
+
+                        add2Log(entry:=
+                            "Fatal Error reading MASTER.FPJ file to parse for compound names" & vbCrLf &
+                            "no parent defined" & vbCrLf &
+                            Join(SourceArray:=MasterFPJ, Delimiter:=vbCrLf) & vbCrLf &
+                            "MASTER.FPJ : " & Path.Combine(
+                                PRZMRunDir,
+                                Filename))
+
+                        Process.Start(fileName:=logFileName)
+                        End
+
+                    Case 1
+                        Parent = MasterFPJ.First
+                        add2Log(
+                            entry:=("Parent:=").PadLeft(logLen) & Parent)
+                    Case 2
+                        Parent = MasterFPJ.First
+                        Met01 = MasterFPJ.Last
+
+                        add2Log(
+                            entry:=("Parent:=").PadLeft(logLen) & Parent)
+                        add2Log(
+                            entry:=("Met 01:=").PadLeft(logLen) & Met01)
+
+                    Case 3
+
+                        Parent = MasterFPJ(0)
+                        Met01 = MasterFPJ(1)
+                        Met02 = MasterFPJ(2)
+
+                        add2Log(
+                            entry:=("Parent:=").PadLeft(logLen) & Parent)
+                        add2Log(
+                            entry:=("Met 01:=").PadLeft(logLen) & Met01)
+                        add2Log(
+                            entry:=("Met 02:=").PadLeft(logLen) & Met02)
+
+                    Case Else
+                        add2Log(entry:=
+                            "Fatal Error reading MASTER.FPJ file to parse for compound names" & vbCrLf &
+                            "more than 2 metabolites defined" & vbCrLf &
+                            Join(SourceArray:=MasterFPJ, Delimiter:=vbCrLf) & vbCrLf &
+                            "MASTER.FPJ : " & Path.Combine(
+                                PRZMRunDir,
+                                Filename))
+
+                        Process.Start(fileName:=logFileName)
+                        End
+
+                End Select
+
+            Else
+
+                inpFilePath = Path.Combine(
+                        path1:=PRZMRunDir,
+                        path2:=baseName & ".inp")
+
+                If Not File.Exists(inpFilePath) Then
+
+                    add2Log(entry:=
+                            "Fatal Error reading MASTER.FPJ or *.inp file to parse for compound names" & vbCrLf &
+                            "MASTER.FPJ ?: " & Path.Combine(
+                                PRZMRunDir,
+                                Filename) & vbCrLf &
+                            "*.inp      ?: " & Path.Combine(
+                                PRZMRunDir,
+                                baseName & ".inp ?"))
+
+                    Process.Start(fileName:=logFileName)
+                    End
+
+                End If
+
+                add2Log(
+                        entry:=("Reading:=").PadLeft(logLen) &
+                        baseName & ".inp to get compound name(s)")
+
+                Try
+                    inpFile = File.ReadAllLines(inpFilePath)
+                Catch ex As Exception
+
+                    add2Log(entry:=
+                            "Fatal Error reading *.inp file to parse for compound names" & vbCrLf &
+                            "*.inp      ?: " & Path.Combine(
+                                PRZMRunDir,
+                                baseName & ".inp ?") & vbCrLf &
+                                ex.Message)
+
+                    Process.Start(fileName:=logFileName)
+                    End
+
+                End Try
+
+                index = Array.FindIndex(
+                array:=inpFile,
+                match:=Function(x)
+                           Return x.Contains(inpSearchString)
+                       End Function)
+
+                If index = -1 Then
+                    'error
+                End If
+
+                compoundNames =
+                    inpFile(index + 2).Split(
+                                separator:={" "c},
+                                options:=StringSplitOptions.RemoveEmptyEntries)
+
+                Select Case compoundNames.Count
+
+                    Case 0
+
+                        add2Log(entry:=
+                            "Fatal Error reading *.inp file to parse for compound names" & vbCrLf &
+                            "no parent defined" & vbCrLf &
+                            Join(SourceArray:=compoundNames, Delimiter:=vbCrLf) & vbCrLf &
+                            "inp file : " & inpFilePath)
+
+                        Process.Start(fileName:=logFileName)
+                        End
+
+                    Case 1
+                        Parent = compoundNames.First
+                        add2Log(
+                            entry:=("Parent:=").PadLeft(logLen) & Parent)
+
+                    Case 2
+                        Parent = compoundNames.First
+                        Met01 = compoundNames.Last
+
+                        add2Log(
+                            entry:=("Parent:=").PadLeft(logLen) & Parent)
+                        add2Log(
+                            entry:=("Met 01:=").PadLeft(logLen) & Met01)
+
+                    Case 3
+
+                        Parent = compoundNames(0)
+                        Met01 = compoundNames(1)
+                        Met02 = compoundNames(2)
+
+                        add2Log(
+                            entry:=("Parent:=").PadLeft(logLen) & Parent)
+                        add2Log(
+                            entry:=("Met 01:=").PadLeft(logLen) & Met01)
+                        add2Log(
+                            entry:=("Met 02:=").PadLeft(logLen) & Met02)
+
+                    Case Else
+
+                        add2Log(entry:=
+                            "Fatal Error reading *.inp file to parse for compound names" & vbCrLf &
+                            "more than 2 metabolites defined" & vbCrLf &
+                            Join(SourceArray:=compoundNames, Delimiter:=vbCrLf) & vbCrLf &
+                            "inp file : " & inpFilePath)
+
+                        Process.Start(fileName:=logFileName)
+                        End
+
+                End Select
 
             End If
 
         Catch ex As Exception
 
             add2Log(entry:=
-                       "Fatal Error reading MASTER.FPJ file to parse for compound names" & vbCrLf &
+                       "Fatal Error reading MASTER.FPJ/ *.inp file to parse for compound names" & vbCrLf &
                         Path.Combine(
                             PRZMRunDir,
                             Filename) & vbCrLf &
@@ -1303,7 +1511,7 @@ Module m_p2tmaker
 
     End Sub
 
-    Private Sub getSWASHNos()
+    Private Function getSWASHNos() As Boolean
 
         Const Filename As String = "przm.pzm"
         Dim przmpzm As String() = {}
@@ -1312,11 +1520,29 @@ Module m_p2tmaker
 
         Try
 
+
+            If Not File.Exists(
+                        path:=Path.Combine(
+                            PRZMRunDir,
+                            Filename)) Then
+
+                SWASHNos.AddRange(
+                    {
+                    -99, -99, -99, -99
+                    }
+                    )
+
+                add2Log(entry:=("SWASH #:=").PadLeft(logLen) & " no " & Filename & " found! Use *.inp file name")
+
+                Return False
+
+            End If
+
             SWASHNos.Clear()
 
             add2Log(
                 entry:=("Reading:=").PadLeft(logLen) &
-                Filename)
+                Filename & "   to get SWASH #")
 
             przmpzm =
                 File.ReadAllLines(
@@ -1325,6 +1551,7 @@ Module m_p2tmaker
 
 
             add2Log(entry:=("SWASH #:=").PadLeft(logLen))
+
             For counter As Integer = 1 To 4
 
                 tempString =
@@ -1373,7 +1600,9 @@ Module m_p2tmaker
 
         End Try
 
-    End Sub
+        Return True
+
+    End Function
 
     Private Sub getTPAPpos(ZTSHeaderRow As String)
 
@@ -1456,7 +1685,12 @@ Module m_p2tmaker
             'sim info
             .Add(LeadingString & "Crop                : " & Crop)
             .Add(LeadingString & "Scenario            : " & Scenario)
-            .Add(LeadingString & "Tier                : " & "Step 03")
+
+            If description = String.Empty Then
+                .Add(LeadingString & "Tier                : " & "Step 03")
+            Else
+                .Add(LeadingString & "Description         : " & description)
+            End If
 
             If seasonOnly Then
                 .Add(LeadingString & "Season start        : " & seasonStart.ToString("dd-MMM-yyyy"))
@@ -1474,10 +1708,6 @@ Module m_p2tmaker
                 .Add(LeadingString & "Applns per season   : " & ApplnsPerSeason.ToString("00"))
             End If
 
-
-
-
-
             'parent or met01/met02, must start with '*  Chemical:  ' to fit with txw info
             If ParMet = eParMet.Par Then
 
@@ -1485,7 +1715,9 @@ Module m_p2tmaker
                 .Add(LeadingString & "Parent run")
 
                 add2Log(entry:=("Scenario:=").PadLeft(logLen) & Scenario)
-                add2Log(entry:=("SWASH #:=").PadLeft(logLen) & SWASHno.ToString)
+                If SWASHno <> -99 Then
+                    add2Log(entry:=("SWASH #:=").PadLeft(logLen) & SWASHno.ToString)
+                End If
 
             ElseIf ParMet = eParMet.Met01 Then
 
@@ -1495,7 +1727,7 @@ Module m_p2tmaker
             ElseIf ParMet = eParMet.Met02 Then
 
                 .Add(LeadingString & "Chemical:  " & Met02)
-                .Add(LeadingString & "Metabolite run")
+                .Add(LeadingString & "2nd Metabolite run!")
 
             End If
 
@@ -1524,11 +1756,16 @@ Module m_p2tmaker
 
             .Add(LeadingString)
 
+            .Add("*                       Runoff         Runoff         Erosion        Erosion        Infiltration")
+            .Add(
+                 "* Time                  Volume         flux           Mass           Flux           " &
+                 IIf(
+                     Expression:=monthlyAverage,
+                     TruePart:="Monthly Average",
+                     FalsePart:="Storage/Discharge").ToString)
 
-
-            .Add(LeadingString & "                     Runoff         Runoff         Erosion        Erosion ")
-            .Add("* " & "Time                  Volume         flux           Mass           Flux           Infiltration")
-            .Add("* dd-MMM-YYYY-hh:mm     (mm/h)         (mg as/m2/h)   (kg/h)         (mg as/m2/h)   (mm/h)")
+            .Add(
+                 "* dd-MMM-YYYY-hh: mm    (mm/h)         (mg as/m2/h)   (kg/h)         (mg as/m2/h)   (mm/h)")
 
         End With
 
