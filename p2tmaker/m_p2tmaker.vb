@@ -13,6 +13,7 @@ Module m_p2tmaker
     Private reportIrrigation As Boolean = False
     Private p2tFileInfo As FileInfo
 
+    Const hearderRowNo As Integer = 2
 
     Private keepLogFileName As Boolean = False
 
@@ -72,6 +73,7 @@ Module m_p2tmaker
         Dim out As New List(Of String)
         Dim P2TFileName As String = String.Empty
         Dim SWASHNameKonvention As Boolean
+        Dim stdCMPNames As Boolean
 
         'get cmd line arguments
         getCMDArgs()
@@ -144,7 +146,8 @@ Module m_p2tmaker
 
 
                 'get cmp names from master.fpj
-                getCMPNames(baseName:=Path.GetFileNameWithoutExtension(ZTSFileName))
+                stdCMPNames = getCMPNames(baseName:=Path.GetFileNameWithoutExtension(ZTSFileName),
+                            userCMPnames:=userCMPNames)
 
                 'get SWASH numbers from przm.pzm
                 SWASHNameKonvention = getSWASHNos()
@@ -178,11 +181,6 @@ Module m_p2tmaker
 
             Scenario = getPRZMScenarioFromFilename(ZTSFileName:=ZTSFileName)
             add2Log(entry:=("Scenario:=").PadLeft(logLen) & Scenario)
-
-            If Met01 = String.Empty Then
-                add2Log(
-                    entry:=("Parent run:=").PadLeft(logLen) & Parent)
-            End If
 
             'init
             applns.Clear()
@@ -252,6 +250,12 @@ Module m_p2tmaker
                                     PRZMRunDir,
                                     Path.GetFileNameWithoutExtension(
                                             path:=ZTSFileName) & "-" & Parent & ".p2t")
+
+                    P2TFileName = Replace(Expression:=P2TFileName,
+                                             Find:="--",
+                                             Replacement:="-",
+                                             Compare:=CompareMethod.Text)
+
                 End If
 
                 File.WriteAllLines(
@@ -310,6 +314,12 @@ Module m_p2tmaker
                                             PRZMRunDir,
                                             Path.GetFileNameWithoutExtension(
                                                 path:=ZTSFileName) & "-" & Met01 & ".p2t")
+
+                        P2TFileName = Replace(Expression:=P2TFileName,
+                                             Find:="--",
+                                             Replacement:="-",
+                                             Compare:=CompareMethod.Text)
+
                     End If
 
 
@@ -370,6 +380,11 @@ Module m_p2tmaker
                                             PRZMRunDir,
                                             Path.GetFileNameWithoutExtension(
                                                 path:=ZTSFileName) & "-" & Met02 & ".p2t")
+
+                        P2TFileName = Replace(Expression:=P2TFileName,
+                                              Find:="--",
+                                              Replacement:="-",
+                                              Compare:=CompareMethod.Text)
                     End If
 
                     File.WriteAllLines(
@@ -582,6 +597,11 @@ Module m_p2tmaker
     Private monthlyAverage As Boolean = False
 
     ''' <summary>
+    ''' compound names given by user
+    ''' </summary>
+    Private userCMPNames As String = Nothing
+
+    ''' <summary>
     ''' only old FOCUS season, std. = false
     ''' </summary>
     Private seasonOnly As Boolean = False
@@ -660,6 +680,7 @@ Module m_p2tmaker
     Const argWarmup As String = "warmup:="
     Const argMRT As String = "mrt:="
     Const argMonthlyAverage As String = "monthlyAverage:="
+    Const argUserCMPname As String = "UserCMPname:="
     Const argSeasonOnly As String = "seasonOnly:="
     Const argMaxPRECperHour As String = "maxPREC:="
     Const argEXP As String = "exp:="
@@ -913,6 +934,53 @@ Module m_p2tmaker
 
         add2Log(
             entry:=((argMonthlyAverage).PadLeft(logLen) & monthlyAverage.ToString).PadRight(stdPos) &
+                        IIf(std, " (std.)", " *** user def. ***").ToString)
+
+    End Sub
+
+    Private Sub getUserCMPnames()
+
+        Dim tempFilter As String() = {}
+        Dim std As Boolean = True
+
+        tempFilter =
+            Filter(
+                Source:=arguments.ToArray,
+                Match:=argMonthlyAverage,
+                Include:=True,
+                Compare:=CompareMethod.Text)
+
+        If tempFilter.Count = 1 Then
+
+            Try
+
+                userCMPNames =
+                    CStr(Replace(
+                            Expression:=tempFilter.First,
+                            Find:=argUserCMPname,
+                            Replacement:="",
+                            Compare:=CompareMethod.Text))
+
+                std = False
+
+            Catch ex As Exception
+
+                add2Log(entry:=
+                    "Error parsing cmd line for " & argUserCMPname & vbCrLf &
+                     tempFilter.First & vbCrLf &
+                     ex.Message)
+
+                writeUsage()
+
+                Process.Start(fileName:=logFileName)
+                End
+
+            End Try
+
+        End If
+
+        add2Log(
+            entry:=((argUserCMPname).PadLeft(logLen) & userCMPNames.ToString).PadRight(stdPos) &
                         IIf(std, " (std.)", " *** user def. ***").ToString)
 
     End Sub
@@ -1264,7 +1332,8 @@ Module m_p2tmaker
 
 #Region "    get header info"
 
-    Private Sub getCMPNames(baseName As String)
+    Private Function getCMPNames(baseName As String,
+                   Optional userCMPnames As String = Nothing) As Boolean
 
         Const Filename As String = "MASTER.FPJ"
         Const CMPSearchString As String = "  Chemical Name:"
@@ -1276,6 +1345,80 @@ Module m_p2tmaker
         Dim inpFilePath As String
         Dim inpFile As String() = {}
         Dim compoundNames As String()
+
+        If Not IsNothing(userCMPnames) Then
+
+            Try
+                compoundNames =
+                    userCMPnames.Split(separator:={"/"c},
+                                       options:=StringSplitOptions.RemoveEmptyEntries)
+            Catch ex As Exception
+
+                add2Log(entry:=
+                            "Fatal Error parsing user given compound names" & vbCrLf &
+                            userCMPnames & vbCrLf &
+                            "Separator = '/'")
+
+                Process.Start(fileName:=logFileName)
+                End
+
+            End Try
+
+            Select Case compoundNames.Count
+
+                Case 0
+
+                    add2Log(entry:=
+                            "Fatal Error parsing user given compound names" & vbCrLf &
+                            userCMPnames & vbCrLf &
+                            "Separator = '/'")
+
+                    Process.Start(fileName:=logFileName)
+                    End
+
+                Case 1
+                    Parent = compoundNames.First
+                    add2Log(
+                            entry:=("Parent:=").PadLeft(logLen) & Parent)
+
+                Case 2
+                    Parent = compoundNames.First
+                    Met01 = compoundNames.Last
+
+                    add2Log(
+                            entry:=("Parent:=").PadLeft(logLen) & Parent)
+                    add2Log(
+                            entry:=("Met 01:=").PadLeft(logLen) & Met01)
+
+                Case 3
+
+                    Parent = compoundNames(0)
+                    Met01 = compoundNames(1)
+                    Met02 = compoundNames(2)
+
+                    add2Log(
+                            entry:=("Parent:=").PadLeft(logLen) & Parent)
+                    add2Log(
+                            entry:=("Met 01:=").PadLeft(logLen) & Met01)
+                    add2Log(
+                            entry:=("Met 02:=").PadLeft(logLen) & Met02)
+
+                Case Else
+
+                    add2Log(entry:=
+                            "Fatal Error parsing user given compound names" & vbCrLf &
+                            userCMPnames & vbCrLf &
+                            "Separator = '/'")
+
+                    Process.Start(fileName:=logFileName)
+
+                    End
+
+            End Select
+
+            Return False
+
+        End If
 
         Try
 
@@ -1391,17 +1534,21 @@ Module m_p2tmaker
 
                 If Not File.Exists(inpFilePath) Then
 
-                    add2Log(entry:=
-                            "Fatal Error reading MASTER.FPJ or *.inp file to parse for compound names" & vbCrLf &
-                            "MASTER.FPJ ?: " & Path.Combine(
-                                PRZMRunDir,
-                                Filename) & vbCrLf &
-                            "*.inp      ?: " & Path.Combine(
-                                PRZMRunDir,
-                                baseName & ".inp ?"))
 
-                    Process.Start(fileName:=logFileName)
-                    End
+                    Parent = "Par"
+                    Met01 = "Met01"
+                    Met02 = "Met02"
+
+                    add2Log(
+                        entry:=("Parent:=").PadLeft(logLen) & Parent)
+                    add2Log(
+                        entry:=("Met 01:=").PadLeft(logLen) & Met01)
+                    add2Log(
+                        entry:=("Met 02:=").PadLeft(logLen) & Met02)
+
+                    add2Log(entry:=(""))
+
+                    Return False
 
                 End If
 
@@ -1509,7 +1656,9 @@ Module m_p2tmaker
 
         End Try
 
-    End Sub
+        Return True
+
+    End Function
 
     Private Function getSWASHNos() As Boolean
 
@@ -1529,8 +1678,7 @@ Module m_p2tmaker
                 SWASHNos.AddRange(
                     {
                     -99, -99, -99, -99
-                    }
-                    )
+                    })
 
                 add2Log(entry:=("SWASH #:=").PadLeft(logLen) & " no " & Filename & " found! Use *.inp file name")
 
@@ -1765,7 +1913,7 @@ Module m_p2tmaker
                      FalsePart:="Storage/Discharge").ToString)
 
             .Add(
-                 "* dd-MMM-YYYY-hh: mm    (mm/h)         (mg as/m2/h)   (kg/h)         (mg as/m2/h)   (mm/h)")
+                 "* dd-MMM-YYYY-hh:mm     (mm/h)         (mg as/m2/h)   (kg/h)         (mg as/m2/h)   (mm/h)")
 
         End With
 
@@ -1780,6 +1928,7 @@ Module m_p2tmaker
 #Region "    Definitions"
 
         Dim ZTSFile As String() = {}
+        Dim headerRow As String = ""
         Dim tempString As String = String.Empty
         Dim tempArray As String() = {}
 
@@ -1817,6 +1966,27 @@ Module m_p2tmaker
         Try
 
             ZTSFile = File.ReadAllLines(ZTSFileName)
+
+            'filter comments
+            ZTSFile =
+                Filter(Source:=ZTSFile,
+                       Match:="* ",
+                       Include:=False,
+                       Compare:=CompareMethod.Text)
+
+            headerRow = ZTSFile(hearderRowNo)
+
+            If Not ZTSFile(ZTSHeaderRowNo).Contains("RFLX3") Then
+                Met02 = String.Empty
+            End If
+            If Not ZTSFile(ZTSHeaderRowNo).Contains("RFLX2") Then
+                Met01 = String.Empty
+            End If
+
+            If Met01 = String.Empty Then
+                add2Log(
+                    entry:=("Parent run:=").PadLeft(logLen) & Parent)
+            End If
 
             'check for valid zts file
             If ZTSFile.Count < 400 Then
